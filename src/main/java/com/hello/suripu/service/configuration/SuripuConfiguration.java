@@ -1,6 +1,7 @@
 package com.hello.suripu.service.configuration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.hello.suripu.core.configuration.DynamoDBConfiguration;
 import com.hello.suripu.core.configuration.LibratoConfiguration;
 import com.yammer.dropwizard.config.Configuration;
 import com.yammer.dropwizard.db.DatabaseConfiguration;
@@ -35,5 +36,15 @@ public class SuripuConfiguration extends Configuration {
 
     public LibratoConfiguration getLibrato() {
         return librato;
+    }
+
+
+    @Valid
+    @NotNull
+    @JsonProperty("dynamodb")
+    private DynamoDBConfiguration dynamoDBConfiguration;
+
+    public DynamoDBConfiguration getDynamoDBConfiguration() {
+        return dynamoDBConfiguration;
     }
 }
