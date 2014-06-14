@@ -1,7 +1,7 @@
 package com.hello.suripu.service.db;
 
-import com.hello.suripu.core.db.binders.BindDeviceBatch;
-import com.hello.suripu.core.db.binders.DeviceBatch;
+import com.hello.suripu.core.db.binders.BindBatchSensorData;
+import com.hello.suripu.core.models.BatchSensorData;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.sqlobject.Bind;
 import org.skife.jdbi.v2.sqlobject.SqlUpdate;
@@ -10,7 +10,7 @@ public interface DeviceDataDAO {
 
     @SqlUpdate("INSERT INTO device_sensors_batch (account_id, ambient_temp, ambient_light, ambient_humidity, ambient_air_quality, ts, offset_millis) " +
             "VALUES(:account_id, :ambient_temp, :ambient_light, :ambient_humidity, :ambient_air_quality, :ts, :offset_millis);")
-    void insertBatch(@BindDeviceBatch final DeviceBatch deviceBatch);
+    void insertBatch(@BindBatchSensorData final BatchSensorData batchSensorData);
 
     @SqlUpdate("INSERT INTO device_sensors (device_id, account_id, ts, offset_millis, ambient_temp, ambient_light, " +
             "ambient_humidity, ambient_air_quality) VALUES(:device_id, :account_id, :ts, :offset_millis, :ambient_temp, :ambient_light, :ambient_humidity, :ambient_air_quality)")
