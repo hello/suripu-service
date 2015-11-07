@@ -1,3 +1,4 @@
 /configs/*.dev.yml
 /suripu-service.iml
-/.idea
+.idea
+
