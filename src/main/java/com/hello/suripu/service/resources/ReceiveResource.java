@@ -100,8 +100,8 @@ public class ReceiveResource extends BaseResource {
     private final ResponseCommandsDAODynamoDB responseCommandsDAODynamoDB;
 
     private final MetricRegistry metrics;
-    private final Meter senseClockOutOfSync;
-    private final Meter pillClockOutOfSync;
+    protected Meter senseClockOutOfSync;
+    protected Meter pillClockOutOfSync;
     private final CalibrationDAO calibrationDAO;
 
     @Context

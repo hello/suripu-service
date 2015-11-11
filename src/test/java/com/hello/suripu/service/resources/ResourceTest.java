@@ -1,5 +1,6 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.db.CalibrationDAO;
@@ -49,6 +50,7 @@ public class ResourceTest {
     @Mock protected CalibrationDAO calibrationDAO;
     @Mock protected RolloutClient featureFlipper;
     @Mock protected MetricRegistry metricRegistry;
+    @Mock protected Meter meter;
 
     public void setUp(){
         MockitoAnnotations.initMocks(this);

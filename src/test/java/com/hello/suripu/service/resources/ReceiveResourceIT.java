@@ -72,6 +72,8 @@ public class ReceiveResourceIT extends ResourceTest {
         );
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;
+        receiveResource.senseClockOutOfSync = meter;
+        receiveResource.pillClockOutOfSync = meter;
         this.receiveResource = spy(receiveResource);
 
         BaseResourceTestHelper.stubGetHeader(receiveResource.request, "X-Forwarded-For", "127.0.0.1");
