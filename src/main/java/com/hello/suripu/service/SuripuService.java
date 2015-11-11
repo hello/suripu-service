@@ -14,7 +14,10 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
 import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
+import com.hello.dropwizard.mikkusu.resources.PingResource;
+import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
+import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
 import com.hello.suripu.coredw8.db.AccessTokenDAO;
 import com.hello.suripu.coredw8.filters.CacheFilterFactory;
@@ -60,9 +63,15 @@ import com.hello.suripu.coredw8.util.CustomJSONExceptionMapper;
 import com.hello.suripu.service.cli.CreateDynamoDBTables;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
 import com.hello.suripu.service.modules.RolloutModule;
+import com.hello.suripu.service.resources.AudioResource;
+import com.hello.suripu.service.resources.CheckResource;
 import com.hello.suripu.service.resources.LogsResource;
+import com.hello.suripu.service.resources.ProvisionResource;
 import com.hello.suripu.service.resources.ReceiveResource;
+import com.hello.suripu.service.resources.RegisterResource;
+import com.librato.rollout.RolloutClient;
 
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.joda.time.DateTimeZone;
 import org.skife.jdbi.v2.DBI;
 import org.slf4j.Logger;
@@ -241,6 +250,13 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final RolloutModule module = new RolloutModule(featureStore, 30);
         ObjectGraphRoot.getInstance().init(module);
 
+        environment.jersey().register(new AbstractBinder() {
+          @Override
+          protected void configure() {
+            bind(new RolloutClient(new DynamoDBAdapter(featureStore, 30))).to(RolloutClient.class);
+          }
+        });
+
         final AmazonDynamoDB calibrationDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.CALIBRATION);
 
         // 300 sec = 5 minutes, which should maximize cache hitrate
@@ -265,13 +281,13 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
 
         environment.jersey().register(receiveResource);
-//        environment.jersey().register(new RegisterResource(deviceDAO,
-//            tokenStore,
-//            kinesisLoggerFactory,
-//            senseKeyStore,
-//            mergedUserInfoDynamoDB,
-//            groupFlipper,
-//            configuration.getDebug()));
+        environment.jersey().register(new RegisterResource(deviceDAO,
+            tokenStore,
+            kinesisLoggerFactory,
+            senseKeyStore,
+            mergedUserInfoDynamoDB,
+            groupFlipper,
+            configuration.getDebug()));
 
 
         final DataLogger senseLogs = kinesisLoggerFactory.get(QueueName.LOGS);
@@ -281,24 +297,24 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 senseLogs
         );
 
-       // environment.jersey().register(new CheckResource(senseKeyStore));
-        //environment.jersey().register(logsResource);
+        environment.jersey().register(new CheckResource(senseKeyStore));
+        environment.jersey().register(logsResource);
 
-        //environment.jersey().register(new PingResource());
-        //environment.jersey().register(new VersionResource());
+        environment.jersey().register(new PingResource());
+        environment.jersey().register(new VersionResource());
 
         final DataLogger audioDataLogger = kinesisLoggerFactory.get(QueueName.AUDIO_FEATURES);
         final DataLogger audioMetaDataLogger = kinesisLoggerFactory.get(QueueName.ENCODE_AUDIO);
-        //environment.jersey().register(
-//            new AudioResource(
-//                s3Client,
-//                bucketName,
-//                audioDataLogger,
-//                configuration.getDebug(),
-//                audioMetaDataLogger,
-//                senseKeyStore));
+        environment.jersey().register(
+            new AudioResource(
+                s3Client,
+                bucketName,
+                audioDataLogger,
+                configuration.getDebug(),
+                audioMetaDataLogger,
+                senseKeyStore));
 
-        //environment.jersey().register(new ProvisionResource(senseKeyStore, groupFlipper));
+        environment.jersey().register(new ProvisionResource(senseKeyStore, groupFlipper));
 
         // Manage the lifecycle of our clients
         environment.lifecycle().manage(new DynamoDBClientManaged(senseKeyStoreDynamoDBClient));
