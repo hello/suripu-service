@@ -6,6 +6,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.TextFormat;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import static com.codahale.metrics.MetricRegistry.name;
+import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
@@ -41,9 +45,6 @@ import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.models.UploadSettings;
 import com.librato.rollout.RolloutClient;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.annotation.Timed;
-import com.yammer.metrics.core.Meter;
 
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -68,7 +69,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 
 @Path("/in")
@@ -99,6 +99,7 @@ public class ReceiveResource extends BaseResource {
     private final OTAConfiguration otaConfiguration;
     private final ResponseCommandsDAODynamoDB responseCommandsDAODynamoDB;
 
+    private final MetricRegistry metrics;
     private final Meter senseClockOutOfSync;
     private final Meter pillClockOutOfSync;
     private final CalibrationDAO calibrationDAO;
@@ -117,13 +118,15 @@ public class ReceiveResource extends BaseResource {
                            final OTAConfiguration otaConfiguration,
                            final ResponseCommandsDAODynamoDB responseCommandsDAODynamoDB,
                            final int ringDurationSec,
-                           final CalibrationDAO calibrationDAO) {
+                           final CalibrationDAO calibrationDAO,
+                           final MetricRegistry metricRegistry) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
 
         this.mergedInfoDynamoDB = mergedInfoDynamoDB;
         this.ringTimeHistoryDAODynamoDB = ringTimeHistoryDAODynamoDB;
+        this.metrics= metricRegistry;
 
         this.debug = debug;
 
@@ -132,8 +135,8 @@ public class ReceiveResource extends BaseResource {
         this.senseUploadConfiguration = senseUploadConfiguration;
         this.otaConfiguration = otaConfiguration;
         this.responseCommandsDAODynamoDB = responseCommandsDAODynamoDB;
-        this.senseClockOutOfSync = Metrics.newMeter(ReceiveResource.class, "sense-clock-out-sync", "clock-out-of-sync", TimeUnit.SECONDS);
-        this.pillClockOutOfSync = Metrics.newMeter(ReceiveResource.class, "pill-clock-out-sync", "clock-out-of-sync", TimeUnit.SECONDS);
+        this.senseClockOutOfSync = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync"));
+        this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
     }

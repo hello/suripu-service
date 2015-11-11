@@ -67,7 +67,8 @@ public class ReceiveResourceIT extends ResourceTest {
                 otaConfiguration,
                 responseCommandsDAODynamoDB,
                 240,
-                calibrationDAO
+                calibrationDAO,
+                metricRegistry
         );
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;
