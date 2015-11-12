@@ -20,7 +20,6 @@ import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
 import com.hello.suripu.coredw8.db.AccessTokenDAO;
-import com.hello.suripu.coredw8.filters.CacheFilterFactory;
 import com.hello.suripu.coredw8.health.DynamoDbHealthCheck;
 import com.hello.suripu.coredw8.health.KinesisHealthCheck;
 import com.hello.suripu.coredw8.clients.AmazonDynamoDBClientFactory;
@@ -108,8 +107,6 @@ public class SuripuService extends Application<SuripuConfiguration> {
     @Override
     public void run(final SuripuConfiguration configuration, Environment environment) throws Exception {
       environment.jersey().register(new JacksonProtobufProvider());
-      environment.jersey().register(CacheFilterFactory.class);
-
 
         final DBIFactory factory = new DBIFactory();
         final DBI commonDB = factory.build(environment, configuration.getCommonDB(), "postgresql");
