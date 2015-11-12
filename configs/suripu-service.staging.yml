@@ -86,19 +86,19 @@ server:
   applicationContextPath: /
   applicationConnectors:
     - type: http
-  port: 5555
+      port: 5555
   adminConnectors:
     - type: http
       port: 5556
   requestLog:
-      timeZone: UTC
+    timeZone: UTC
     appenders:
       - type: file
-      currentLogFilename: /var/log/suripu-service/suripu-service-access.log
+        currentLogFilename: /var/log/suripu-service/suripu-service-access.log
         threshold: ALL
-      archive: true
-      archivedLogFilenamePattern: /var/log/suripu-service/suripu-service-access-%d{yyyy-MM-dd}.log.gz
-      archivedFileCount: 7
+        archive: true
+        archivedLogFilenamePattern: /var/log/suripu-service/suripu-service-access-%d{yyyy-MM-dd}.log.gz
+        archivedFileCount: 7
       - type: papertrail
         host: logs2.papertrailapp.com
         port: 11366
