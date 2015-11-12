@@ -19,6 +19,7 @@ import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
+
 import com.hello.suripu.coredw8.db.AccessTokenDAO;
 import com.hello.suripu.coredw8.health.DynamoDbHealthCheck;
 import com.hello.suripu.coredw8.health.KinesisHealthCheck;
@@ -164,7 +165,9 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final AmazonS3 amazonS3UrlSigner = new AmazonS3Client(s3credentials);
 
-        final AmazonKinesisAsyncClient kinesisClient = new AmazonKinesisAsyncClient(awsCredentialsProvider);
+
+        final ClientConfiguration kinesisClientConfiguration = new ClientConfiguration().withMaxConnections(100);
+        final AmazonKinesisAsyncClient kinesisClient = new AmazonKinesisAsyncClient(awsCredentialsProvider, kinesisClientConfiguration);
         kinesisClient.setEndpoint(configuration.getKinesisConfiguration().getEndpoint());
 
         final KinesisLoggerFactory kinesisLoggerFactory = new KinesisLoggerFactory(
@@ -285,7 +288,6 @@ public class SuripuService extends Application<SuripuConfiguration> {
             mergedUserInfoDynamoDB,
             groupFlipper,
             configuration.getDebug()));
-
 
         final DataLogger senseLogs = kinesisLoggerFactory.get(QueueName.LOGS);
         final LogsResource logsResource = new LogsResource(

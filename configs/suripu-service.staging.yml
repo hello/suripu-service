@@ -87,9 +87,11 @@ server:
   applicationConnectors:
     - type: http
       port: 5555
+      idleTimeout: 25
   adminConnectors:
     - type: http
       port: 5556
+      idleTimeout: 25
   requestLog:
     timeZone: UTC
     appenders:
@@ -107,7 +109,7 @@ server:
 logging:
   level: INFO
   loggers:
-    com.hello.suripu: DEBUG
+    com.hello.suripu: INFO
   appenders:
     - type: file
       threshold: DEBUG

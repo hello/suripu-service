@@ -66,7 +66,8 @@ public class ReceiveResourceTest {
 
             final RingTime nextRingTime = new RingTime(actualRingTime, actualRingTime, new long[0], false);
             final int uploadCycle = ReceiveResource.computeNextUploadInterval(nextRingTime, DateTime.now(), senseUploadConfiguration, false);
-            assertThat(uploadCycle <= senseUploadConfiguration.getDefaultUploadInterval(), is(true));
+            // Next interval should never be > the maximum interval (increased non peak)
+            assertThat(uploadCycle <= senseUploadConfiguration.getIncreasedNonPeakUploadInterval(), is(true));
         }
     }
 
