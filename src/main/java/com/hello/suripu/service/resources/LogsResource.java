@@ -1,6 +1,8 @@
 package com.hello.suripu.service.resources;
 
 import com.google.common.base.Optional;
+
+import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.logging.LogProtos;
 import com.hello.suripu.api.logging.LoggingProtos;
@@ -8,7 +10,7 @@ import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
-import com.yammer.metrics.annotation.Timed;
+
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;

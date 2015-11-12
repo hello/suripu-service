@@ -2,12 +2,14 @@ package com.hello.suripu.service.configuration;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.yammer.dropwizard.config.Configuration;
+
 
 import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import java.util.Set;
+
+import io.dropwizard.Configuration;
 
 public class OTAConfiguration extends Configuration {
     private static final Integer DEFAULT_START_UPDATE_WINDOW_HOUR = 11;  // non peak periods start at 11:00:00

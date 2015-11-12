@@ -6,7 +6,7 @@ import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
-import com.hello.suripu.core.oauth.AccessToken;
+import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.core.oauth.ClientCredentials;
 import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;

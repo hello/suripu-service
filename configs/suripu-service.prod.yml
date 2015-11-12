@@ -27,6 +27,8 @@ sensors_db:
   # the SQL query to run when validating a connection's liveness
   validationQuery: "/* MyService Health Check */ SELECT 1"
 
+  initialSize: 2
+
   # the minimum number of connections to keep open
   minSize: 2
 
@@ -36,11 +38,11 @@ sensors_db:
   # whether or not idle connections should be validated
   checkConnectionWhileIdle: false
 
-  # how long a connection must be held before it can be validated
-  checkConnectionHealthWhenIdleFor: 10s
+  # the amount of time to sleep between runs of the idle connection validation, abandoned cleaner and idle pool resizing
+  evictionInterval: 10s
 
-  # the maximum lifetime of an idle connection
-  closeConnectionIfIdleFor: 1 minute
+  # the minimum amount of time an connection must sit idle in the pool before it is eligible for eviction
+  minIdleTime: 1 minute
 
 common_db:
   driverClass: org.postgresql.Driver
@@ -60,6 +62,8 @@ common_db:
   # the SQL query to run when validating a connection's liveness
   validationQuery: "/* MyService Health Check */ SELECT 1"
 
+  initialSize: 8
+
   # the minimum number of connections to keep open
   minSize: 8
 
@@ -69,49 +73,54 @@ common_db:
   # whether or not idle connections should be validated
   checkConnectionWhileIdle: false
 
-  # how long a connection must be held before it can be validated
-  checkConnectionHealthWhenIdleFor: 10s
+  # the amount of time to sleep between runs of the idle connection validation, abandoned cleaner and idle pool resizing
+  evictionInterval: 10s
 
-  # the maximum lifetime of an idle connection
-  closeConnectionIfIdleFor: 1 minute
+  # the minimum amount of time an connection must sit idle in the pool before it is eligible for eviction
+  minIdleTime: 1 minute
 
-# Logging settings.
-logging:
-
-  # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
-  level: INFO
-
-  # Logger-specific levels.
-  loggers:
-
-    # Sets the level for 'com.example.app' to DEBUG.
-    com.hello.suripu: INFO
-  # Settings for logging to a file.
-  file:
-    enabled: true
-    threshold: INFO
-    currentLogFilename: /var/log/suripu-service/suripu-service.log
-    # When the log file rotates, the archived log will be renamed to this and gzipped. The
-    # %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
-    # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
-    archivedLogFilenamePattern: /var/log/suripu-service/suripu-service-%d{yyyy-MM-dd}.log.gz
-    # The number of archived files to keep.
-    archivedFileCount: 7
-    # The timezone used to format dates. HINT: USE THE DEFAULT, UTC.
+server:
+  adminMinThreads: 1
+  adminMaxThreads: 64
+  adminContextPath: /
+  applicationContextPath: /
+  applicationConnectors:
+    - type: http
+      port: 5555
+  adminConnectors:
+    - type: http
+      port: 5556
+  requestLog:
     timeZone: UTC
-
-http:
-    port: 5555
-    adminPort: 5556
-    # HTTP request log settings.
-    requestLog:
-      file:
-        enabled: true
-        timeZone: UTC
+    appenders:
+      - type: file
         currentLogFilename: /var/log/suripu-service/suripu-service-access.log
+        threshold: ALL
         archive: true
         archivedLogFilenamePattern: /var/log/suripu-service/suripu-service-access-%d{yyyy-MM-dd}.log.gz
         archivedFileCount: 7
+      - type: papertrail
+        host: logs2.papertrailapp.com
+        port: 11366
+        ident: suripu-service-prod
+
+logging:
+  level: INFO
+  loggers:
+    com.hello.suripu: DEBUG
+  appenders:
+    - type: file
+      threshold: DEBUG
+      currentLogFilename: /var/log/suripu-service/suripu-service.log
+      archivedLogFilenamePattern: /var/log/suripu-service/suripu-service-%d{yyyy-MM-dd}.log.gz
+      archivedFileCount: 7
+    - type: papertrail
+      host: logs2.papertrailapp.com
+      port: 11366
+      ident: suripu-service-prod
+      # timezone: UTC
+      # facility: USER
+      # sendLocalName: true
 
 kinesis:
   endpoint : https://kinesis.us-east-1.amazonaws.com

@@ -11,9 +11,11 @@ import com.hello.suripu.core.configuration.DynamoDBTableName;
 import com.hello.suripu.core.configuration.NewDynamoDBConfiguration;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
-import com.yammer.dropwizard.cli.ConfiguredCommand;
-import com.yammer.dropwizard.config.Bootstrap;
+
 import net.sourceforge.argparse4j.inf.Namespace;
+
+import io.dropwizard.cli.ConfiguredCommand;
+import io.dropwizard.setup.Bootstrap;
 
 public class CreateDynamoDBTables extends ConfiguredCommand<SuripuConfiguration> {
 

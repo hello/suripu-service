@@ -2,6 +2,8 @@ package com.hello.suripu.service.resources;
 
 import com.amazonaws.AmazonServiceException;
 import com.google.common.base.Optional;
+
+import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos.MorpheusCommand;
@@ -16,7 +18,7 @@ import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.models.DeviceAccountPair;
-import com.hello.suripu.core.oauth.AccessToken;
+import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.core.oauth.ClientCredentials;
 import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
@@ -28,8 +30,9 @@ import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.utils.RegistrationLogger;
 import com.librato.rollout.RolloutClient;
-import com.yammer.metrics.annotation.Timed;
+
 import org.apache.commons.codec.binary.Hex;
+
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.slf4j.Logger;

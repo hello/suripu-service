@@ -2,11 +2,12 @@ package com.hello.suripu.service.configuration;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.yammer.dropwizard.config.Configuration;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+
+import io.dropwizard.Configuration;
 
 public class SenseUploadConfiguration extends Configuration {
     private static final Integer DEFAULT_NON_PEAK_HOUR_LOWER_BOUND = 11;  // non peak periods start at 11:00:00
