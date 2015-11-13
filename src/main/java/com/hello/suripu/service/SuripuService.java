@@ -19,6 +19,7 @@ import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
+import com.hello.suripu.coredw8.filters.SlowRequestsFilter;
 
 import com.hello.suripu.coredw8.db.AccessTokenDAO;
 import com.hello.suripu.coredw8.health.DynamoDbHealthCheck;
@@ -78,8 +79,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.EnumSet;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+
+import javax.servlet.DispatcherType;
+import javax.servlet.FilterRegistration;
 
 import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.jdbi.OptionalContainerFactory;
@@ -288,6 +293,10 @@ public class SuripuService extends Application<SuripuConfiguration> {
             mergedUserInfoDynamoDB,
             groupFlipper,
             configuration.getDebug()));
+
+
+        final FilterRegistration.Dynamic builder = environment.servlets().addFilter("slowRequestsFilter", SlowRequestsFilter.class);
+        builder.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), true, "/*");
 
         final DataLogger senseLogs = kinesisLoggerFactory.get(QueueName.LOGS);
         final LogsResource logsResource = new LogsResource(
