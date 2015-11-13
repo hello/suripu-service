@@ -87,11 +87,11 @@ server:
   applicationConnectors:
     - type: http
       port: 5555
-      idleTimeout: 25
+      idleTimeout: 25 seconds
   adminConnectors:
     - type: http
       port: 5556
-      idleTimeout: 25
+      idleTimeout: 25 seconds
   requestLog:
     timeZone: UTC
     appenders:
