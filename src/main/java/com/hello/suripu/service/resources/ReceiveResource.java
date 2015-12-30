@@ -1,15 +1,13 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.TextFormat;
-
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import static com.codahale.metrics.MetricRegistry.name;
-import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
@@ -45,7 +43,6 @@ import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.models.UploadSettings;
 import com.librato.rollout.RolloutClient;
-
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -62,13 +59,14 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.codahale.metrics.MetricRegistry.name;
 
 
 @Path("/in")
@@ -244,7 +242,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         final String tempSenseId = data.hasDeviceId() ? data.getDeviceId() : debugSenseId;
-        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList);
+        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress);
     }
 
 
@@ -276,7 +274,8 @@ public class ReceiveResource extends BaseResource {
                                         final int firmwareVersion,
                                         final byte[] encryptionKey,
                                         final DataInputProtos.batched_periodic_data batch,
-                                        final List<UserInfo> userInfoList) {
+                                        final List<UserInfo> userInfoList,
+                                        final String ipAddress) {
         // TODO: Warning, since we query dynamoDB based on user input, the user can generate a lot of
         // requests to break our bank(Assume that Dynamo DB never goes down).
         // May be we should somehow cache these data to reduce load & cost.
@@ -296,6 +295,14 @@ public class ReceiveResource extends BaseResource {
                         DateTime.now(),
                         roundedDateTime
                 );
+
+                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={}",
+                        deviceName,
+                        DateTime.now(),
+                        roundedDateTime,
+                        batch.getFirmwareVersion(),
+                        ipAddress);
+
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);
                 deviceHasOutOfSyncClock = true;
