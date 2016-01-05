@@ -306,7 +306,10 @@ public class ReceiveResource extends BaseResource {
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);
                 deviceHasOutOfSyncClock = true;
-                if (featureFlipper.deviceFeatureActive(FeatureFlipper.REBOOT_CLOCK_OUT_OF_SYNC_DEVICES, deviceName, groups)) {
+
+                // TODO: pull firmware version dynamically
+                final boolean isLatestFirmware = batch.hasFirmwareVersion() && batch.getFirmwareVersion() == 1425228832;
+                if (featureFlipper.deviceFeatureActive(FeatureFlipper.REBOOT_CLOCK_OUT_OF_SYNC_DEVICES, deviceName, groups) && isLatestFirmware) {
                     LOGGER.warn("Reset MCU set for sense {}", deviceName);
                     responseBuilder.setResetMcu(true);
                 } else {
