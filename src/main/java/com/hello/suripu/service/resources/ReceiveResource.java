@@ -295,7 +295,13 @@ public class ReceiveResource extends BaseResource {
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.MEASURE_CLOCK_DRIFT, deviceName, groups)) {
                 final int drift = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
                 if(Math.abs(drift) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
-                    LOGGER.warn("action=measure-clock-drift drift={} sense_id={} number_samples={}", drift, deviceName, batch.getDataCount());
+                    LOGGER.warn("action=measure-clock-drift drift={} sense_id={} number_samples={} fw_version={} ip_address={}",
+                            drift,
+                            deviceName,
+                            batch.getDataCount(),
+                            batch.getFirmwareVersion(),
+                            ipAddress
+                    );
                 }
             }
 
