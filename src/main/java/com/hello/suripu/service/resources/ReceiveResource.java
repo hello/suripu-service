@@ -47,6 +47,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +79,7 @@ public class ReceiveResource extends BaseResource {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReceiveResource.class);
     private static final int CLOCK_SKEW_TOLERATED_IN_HOURS = 2;
+    private static final int CLOCK_DRIFT_MEASUREMENT_THRESHOLD = 2;
     private static final int CLOCK_BUG_SKEW_IN_HOURS = 6 * 30 * 24 - 1; // 6 months in hours
     private static final String LOCAL_OFFICE_IP_ADDRESS = "199.87.82.114";
     private static final Integer FW_VERSION_0_9_22_RC7 = 1530439804;
@@ -289,6 +291,14 @@ public class ReceiveResource extends BaseResource {
             final DataInputProtos.periodic_data data = batch.getData(i);
             final Long timestampMillis = data.getUnixTime() * 1000L;
             final DateTime roundedDateTime = new DateTime(timestampMillis, DateTimeZone.UTC).withSecondOfMinute(0);
+
+            if (featureFlipper.deviceFeatureActive(FeatureFlipper.MEASURE_CLOCK_DRIFT, deviceName, groups)) {
+                final int drift = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
+                if(Math.abs(drift) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
+                    LOGGER.warn("action=measure-clock-drift drift={} sense_id={} number_samples={}", drift, deviceName, batch.getDataCount());
+                }
+            }
+
             if (roundedDateTime.isAfter(DateTime.now().plusHours(CLOCK_SKEW_TOLERATED_IN_HOURS)) || roundedDateTime.isBefore(DateTime.now().minusHours(CLOCK_SKEW_TOLERATED_IN_HOURS))) {
                 LOGGER.error("The clock for device {} is not within reasonable bounds (2h), current time = {}, received time = {}",
                         deviceName,
@@ -537,6 +547,7 @@ public class ReceiveResource extends BaseResource {
         for (final SenseCommandProtos.pill_data pill : batchPilldata.getPillsList()) {
             final DateTime now = DateTime.now();
             final Long pillTimestamp = pill.getTimestamp() * 1000L;
+
             if (pillTimestamp > now.plusHours(CLOCK_SKEW_TOLERATED_IN_HOURS).getMillis()) {
                 final DateTime outOfSyncDateTime = new DateTime(pillTimestamp, DateTimeZone.UTC);
                 LOGGER.warn("Pill data timestamp from {} is too much in the future. now = {}, timestamp = {}",
