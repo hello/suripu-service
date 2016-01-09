@@ -554,7 +554,9 @@ public class ReceiveResource extends BaseResource {
         cleanBatch.setDeviceId(batchPilldata.getDeviceId());
 
         final int proxCount = batchPilldata.getProxCount();
-        LOGGER.info("sense_id={} prox_count={}", batchPilldata.getDeviceId(), proxCount);
+        if(proxCount > 0) {
+            LOGGER.info("sense_id={} prox_count={}", batchPilldata.getDeviceId(), proxCount);
+        }
 
         // Note: we are not checking for clock issue on prox data at the moment
         // we are just forwarding it along
