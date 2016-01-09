@@ -553,6 +553,13 @@ public class ReceiveResource extends BaseResource {
         final SenseCommandProtos.batched_pill_data.Builder cleanBatch = SenseCommandProtos.batched_pill_data.newBuilder();
         cleanBatch.setDeviceId(batchPilldata.getDeviceId());
 
+        final int proxCount = batchPilldata.getProxCount();
+        LOGGER.info("sense_id={} prox_count={}", batchPilldata.getDeviceId(), proxCount);
+
+        // Note: we are not checking for clock issue on prox data at the moment
+        // we are just forwarding it along
+        cleanBatch.addAllProx(batchPilldata.getProxList());
+
         for (final SenseCommandProtos.pill_data pill : batchPilldata.getPillsList()) {
             final DateTime now = DateTime.now();
             final Long pillTimestamp = pill.getTimestamp() * 1000L;
