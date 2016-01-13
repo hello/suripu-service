@@ -324,7 +324,7 @@ public class ReceiveResource extends BaseResource {
                 deviceHasOutOfSyncClock = true;
 
                 // TODO: pull firmware version dynamically
-                final boolean isLatestFirmware = batch.hasFirmwareVersion() && batch.getFirmwareVersion() == 1425228832;
+                final boolean isLatestFirmware = batch.hasFirmwareVersion() && batch.getFirmwareVersion() == 510963780; // 1.0.5.3.1
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.REBOOT_CLOCK_OUT_OF_SYNC_DEVICES, deviceName, groups) && isLatestFirmware) {
                     LOGGER.warn("Reset MCU set for sense {}", deviceName);
                     responseBuilder.setResetMcu(true);
