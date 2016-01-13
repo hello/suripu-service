@@ -7,6 +7,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
@@ -324,7 +325,11 @@ public class ReceiveResource extends BaseResource {
                 deviceHasOutOfSyncClock = true;
 
                 // TODO: pull firmware version dynamically
-                final boolean isLatestFirmware = batch.hasFirmwareVersion() && batch.getFirmwareVersion() == 510963780; // 1.0.5.3.1
+                final Set<Integer> fwVersionsToRebootIfClockOutOfSync = Sets.newHashSet(
+                    1425228832,  // 1.0.5.2
+                    510963780   //1.0.5.3.1
+                );
+                final boolean isLatestFirmware = batch.hasFirmwareVersion() && fwVersionsToRebootIfClockOutOfSync.contains(batch.getFirmwareVersion());
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.REBOOT_CLOCK_OUT_OF_SYNC_DEVICES, deviceName, groups) && isLatestFirmware) {
                     LOGGER.warn("Reset MCU set for sense {}", deviceName);
                     responseBuilder.setResetMcu(true);
