@@ -327,7 +327,8 @@ public class ReceiveResource extends BaseResource {
                 // TODO: pull firmware version dynamically
                 final Set<Integer> fwVersionsToRebootIfClockOutOfSync = Sets.newHashSet(
                     1425228832,  // 1.0.5.2
-                    510963780   //1.0.5.3.1
+                    510963780,   //1.0.5.3.1
+                    782503713   //1.0.5.3.4
                 );
                 final boolean isLatestFirmware = batch.hasFirmwareVersion() && fwVersionsToRebootIfClockOutOfSync.contains(batch.getFirmwareVersion());
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.REBOOT_CLOCK_OUT_OF_SYNC_DEVICES, deviceName, groups) && isLatestFirmware) {
