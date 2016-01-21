@@ -299,11 +299,11 @@ public class ReceiveResource extends BaseResource {
             final DateTime roundedDateTime = new DateTime(timestampMillis, DateTimeZone.UTC).withSecondOfMinute(0);
 
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.MEASURE_CLOCK_DRIFT, deviceName, groups)) {
-                final int drift = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
-                this.drift.update(Math.abs(drift));
-                if(Math.abs(drift) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
+                final int driftInMinutes = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
+                this.drift.update(Math.abs(driftInMinutes));
+                if(Math.abs(driftInMinutes) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
                     LOGGER.warn("action=measure-clock-drift drift={} sense_id={} number_samples={} fw_version={} ip_address={}",
-                            drift,
+                            driftInMinutes,
                             deviceName,
                             batch.getDataCount(),
                             batch.getFirmwareVersion(),
@@ -839,6 +839,6 @@ public class ReceiveResource extends BaseResource {
     }
 
     public static boolean isClockOutOfSync(final DateTime sampleTime, final DateTime referenceTime, final Integer offsetThreshold) {
-        return sampleTime.isAfter(referenceTime.plusHours(CLOCK_SKEW_TOLERATED_IN_HOURS)) || sampleTime.isBefore(referenceTime.minusHours(CLOCK_SKEW_TOLERATED_IN_HOURS));
+        return sampleTime.isAfter(referenceTime.plusHours(offsetThreshold)) || sampleTime.isBefore(referenceTime.minusHours(offsetThreshold));
     }
 }
