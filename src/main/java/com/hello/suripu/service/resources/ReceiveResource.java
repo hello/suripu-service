@@ -155,6 +155,9 @@ public class ReceiveResource extends BaseResource {
         DataInputProtos.batched_periodic_data data = null;
 
         String debugSenseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
+        final String topFW = this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION);
+        final String middleFW = this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION);
+
         if (debugSenseId == null) {
             debugSenseId = "";
         }
@@ -225,6 +228,8 @@ public class ReceiveResource extends BaseResource {
                 .setData(data)
                 .setReceivedAt(DateTime.now().getMillis())
                 .setIpAddress(ipAddress)
+                .setFirmwareMiddleVersion(Integer.valueOf(middleFW))
+                .setFirmwareTopVersion(Integer.valueOf(topFW))
                 .setUptimeInSecond(data.getUptimeInSecond());
 
 
