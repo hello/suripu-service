@@ -1,5 +1,6 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.annotation.Timed;
@@ -103,6 +104,7 @@ public class ReceiveResource extends BaseResource {
     private final MetricRegistry metrics;
     protected Meter senseClockOutOfSync;
     protected Meter pillClockOutOfSync;
+    protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
     @Context
@@ -138,6 +140,7 @@ public class ReceiveResource extends BaseResource {
         this.responseCommandsDAODynamoDB = responseCommandsDAODynamoDB;
         this.senseClockOutOfSync = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync"));
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
+        this.drift = metrics.histogram("sense-drift");
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
     }
@@ -295,6 +298,7 @@ public class ReceiveResource extends BaseResource {
 
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.MEASURE_CLOCK_DRIFT, deviceName, groups)) {
                 final int drift = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
+                this.drift.update(Math.abs(drift));
                 if(Math.abs(drift) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
                     LOGGER.warn("action=measure-clock-drift drift={} sense_id={} number_samples={} fw_version={} ip_address={}",
                             drift,
