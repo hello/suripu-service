@@ -103,6 +103,7 @@ public class ReceiveResource extends BaseResource {
 
     private final MetricRegistry metrics;
     protected Meter senseClockOutOfSync;
+    protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
@@ -139,6 +140,7 @@ public class ReceiveResource extends BaseResource {
         this.otaConfiguration = otaConfiguration;
         this.responseCommandsDAODynamoDB = responseCommandsDAODynamoDB;
         this.senseClockOutOfSync = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync"));
+        this.senseClockOutOfSync3h = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync-3h"));
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
         this.drift = metrics.histogram("sense-drift");
         this.ringDurationSec = ringDurationSec;
@@ -310,7 +312,7 @@ public class ReceiveResource extends BaseResource {
                 }
             }
 
-            if (roundedDateTime.isAfter(DateTime.now().plusHours(CLOCK_SKEW_TOLERATED_IN_HOURS)) || roundedDateTime.isBefore(DateTime.now().minusHours(CLOCK_SKEW_TOLERATED_IN_HOURS))) {
+            if(isClockOutOfSync(roundedDateTime, DateTime.now(DateTimeZone.UTC), CLOCK_SKEW_TOLERATED_IN_HOURS)) {
                 LOGGER.error("The clock for device {} is not within reasonable bounds (2h), current time = {}, received time = {}",
                         deviceName,
                         DateTime.now(),
@@ -327,6 +329,13 @@ public class ReceiveResource extends BaseResource {
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);
                 deviceHasOutOfSyncClock = true;
+
+                // Additional logic to measure clock drift
+                // Sense keeps up to 3h of data in case of connection issue. We'd like to measure how many devices are outside these bounds
+                if(isClockOutOfSync(roundedDateTime, DateTime.now(DateTimeZone.UTC), CLOCK_SKEW_TOLERATED_IN_HOURS + 1)) {
+                    senseClockOutOfSync3h.mark(1);
+                }
+
 
                 // TODO: pull firmware version dynamically
                 final Set<Integer> fwVersionsToRebootIfClockOutOfSync = Sets.newHashSet(
@@ -827,5 +836,9 @@ public class ReceiveResource extends BaseResource {
                     break;
             }
         }
+    }
+
+    public static boolean isClockOutOfSync(final DateTime sampleTime, final DateTime referenceTime, final Integer offsetThreshold) {
+        return sampleTime.isAfter(referenceTime.plusHours(CLOCK_SKEW_TOLERATED_IN_HOURS)) || sampleTime.isBefore(referenceTime.minusHours(CLOCK_SKEW_TOLERATED_IN_HOURS));
     }
 }
