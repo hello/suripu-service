@@ -142,7 +142,7 @@ public class ReceiveResource extends BaseResource {
         this.senseClockOutOfSync = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync"));
         this.senseClockOutOfSync3h = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync-3h"));
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
-        this.drift = metrics.histogram("sense-drift");
+        this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
     }
