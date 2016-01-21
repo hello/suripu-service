@@ -1,5 +1,6 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.annotation.Timed;
@@ -102,7 +103,9 @@ public class ReceiveResource extends BaseResource {
 
     private final MetricRegistry metrics;
     protected Meter senseClockOutOfSync;
+    protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
+    protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
     @Context
@@ -137,7 +140,9 @@ public class ReceiveResource extends BaseResource {
         this.otaConfiguration = otaConfiguration;
         this.responseCommandsDAODynamoDB = responseCommandsDAODynamoDB;
         this.senseClockOutOfSync = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync"));
+        this.senseClockOutOfSync3h = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync-3h"));
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
+        this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
     }
@@ -294,10 +299,11 @@ public class ReceiveResource extends BaseResource {
             final DateTime roundedDateTime = new DateTime(timestampMillis, DateTimeZone.UTC).withSecondOfMinute(0);
 
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.MEASURE_CLOCK_DRIFT, deviceName, groups)) {
-                final int drift = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
-                if(Math.abs(drift) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
+                final int driftInMinutes = Minutes.minutesBetween(DateTime.now(DateTimeZone.UTC), roundedDateTime).getMinutes();
+                this.drift.update(Math.abs(driftInMinutes));
+                if(Math.abs(driftInMinutes) >= CLOCK_DRIFT_MEASUREMENT_THRESHOLD) {
                     LOGGER.warn("action=measure-clock-drift drift={} sense_id={} number_samples={} fw_version={} ip_address={}",
-                            drift,
+                            driftInMinutes,
                             deviceName,
                             batch.getDataCount(),
                             batch.getFirmwareVersion(),
@@ -306,7 +312,7 @@ public class ReceiveResource extends BaseResource {
                 }
             }
 
-            if (roundedDateTime.isAfter(DateTime.now().plusHours(CLOCK_SKEW_TOLERATED_IN_HOURS)) || roundedDateTime.isBefore(DateTime.now().minusHours(CLOCK_SKEW_TOLERATED_IN_HOURS))) {
+            if(isClockOutOfSync(roundedDateTime, DateTime.now(DateTimeZone.UTC), CLOCK_SKEW_TOLERATED_IN_HOURS)) {
                 LOGGER.error("The clock for device {} is not within reasonable bounds (2h), current time = {}, received time = {}",
                         deviceName,
                         DateTime.now(),
@@ -323,6 +329,13 @@ public class ReceiveResource extends BaseResource {
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);
                 deviceHasOutOfSyncClock = true;
+
+                // Additional logic to measure clock drift
+                // Sense keeps up to 3h of data in case of connection issue. We'd like to measure how many devices are outside these bounds
+                if(isClockOutOfSync(roundedDateTime, DateTime.now(DateTimeZone.UTC), CLOCK_SKEW_TOLERATED_IN_HOURS + 1)) {
+                    senseClockOutOfSync3h.mark(1);
+                }
+
 
                 // TODO: pull firmware version dynamically
                 final Set<Integer> fwVersionsToRebootIfClockOutOfSync = Sets.newHashSet(
@@ -823,5 +836,9 @@ public class ReceiveResource extends BaseResource {
                     break;
             }
         }
+    }
+
+    public static boolean isClockOutOfSync(final DateTime sampleTime, final DateTime referenceTime, final Integer offsetThreshold) {
+        return sampleTime.isAfter(referenceTime.plusHours(offsetThreshold)) || sampleTime.isBefore(referenceTime.minusHours(offsetThreshold));
     }
 }
