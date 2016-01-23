@@ -160,18 +160,13 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        String topFW = FIRMWARE_DEFAULT;
-        String middleFW = FIRMWARE_DEFAULT;
-
-        try {
-            topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
-        } catch (Exception ex) {
+        final String topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
+        if (topFW.equals(FIRMWARE_DEFAULT)) {
             LOGGER.error("error=header-invalid-fwversion-top sense_id={}", debugSenseId);
         }
 
-        try {
-            middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
-        } catch (Exception ex) {
+        final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
+        if (middleFW.equals(FIRMWARE_DEFAULT)) {
             LOGGER.error("error=header-invalid-fwversion-middle sense_id={}", debugSenseId);
         }
 
