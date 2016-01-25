@@ -86,6 +86,7 @@ public class ReceiveResource extends BaseResource {
     private static final String LOCAL_OFFICE_IP_ADDRESS = "199.87.82.114";
     private static final Integer FW_VERSION_0_9_22_RC7 = 1530439804;
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
+    private static final String FIRMWARE_DEFAULT = "0";
     private final int ringDurationSec;
 
     private final KeyStore keyStore;
@@ -164,6 +165,9 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
+        final String topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
+        final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
+
         LOGGER.debug("DebugSenseId device_id = {}", debugSenseId);
 
         try {
@@ -180,7 +184,7 @@ public class ReceiveResource extends BaseResource {
         LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(data));
 
         if (!data.hasDeviceId() || data.getDeviceId().isEmpty()) {
-            LOGGER.error("Empty device id");
+            LOGGER.error("error=empty-device-id");
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -204,14 +208,14 @@ public class ReceiveResource extends BaseResource {
         final Optional<byte[]> optionalKeyBytes = getKey(deviceId, groups, ipAddress);
 
         if (!optionalKeyBytes.isPresent()) {
-            LOGGER.error("Failed to get key from key store for device_id = {}", data.getDeviceId());
+            LOGGER.error("error=key-store-failure sense_id={}", data.getDeviceId());
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("{} : {}", deviceId, error.get().message);
+            LOGGER.error("{} sense_id={}", error.get().message, deviceId);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
@@ -221,7 +225,7 @@ public class ReceiveResource extends BaseResource {
         try {
             userInfoList.addAll(this.mergedInfoDynamoDB.getInfo(data.getDeviceId()));  // get alarm related info from DynamoDB "cache".
         } catch (Exception ex) {
-            LOGGER.error("Failed to retrieve info from merge info db for device {}: {}", data.getDeviceId(), ex.getMessage());
+            LOGGER.error("error=merge-info-retrieve-failure sense_id={}: {}", data.getDeviceId(), ex.getMessage());
         }
         LOGGER.debug("Found {} pairs for device_id = {}", userInfoList.size(), data.getDeviceId());
 
@@ -230,6 +234,8 @@ public class ReceiveResource extends BaseResource {
                 .setData(data)
                 .setReceivedAt(DateTime.now().getMillis())
                 .setIpAddress(ipAddress)
+                .setFirmwareMiddleVersion(middleFW)
+                .setFirmwareTopVersion(topFW)
                 .setUptimeInSecond(data.getUptimeInSecond());
 
 
@@ -245,7 +251,7 @@ public class ReceiveResource extends BaseResource {
             final DataLogger batchSenseDataLogger = kinesisLoggerFactory.get(QueueName.SENSE_SENSORS_DATA);
             batchSenseDataLogger.put(data.getDeviceId(), batchPeriodicDataWorkerMessageBuilder.build().toByteArray());
         } catch (Exception e) {
-            LOGGER.error("IMPORTANT Failed to insert into batch sensors kinesis stream: {}", e.getMessage());
+            LOGGER.error("error=kinesis-insert-sense_sensors_data {}", e.getMessage());
             return plainTextError(Response.Status.SERVICE_UNAVAILABLE, "");
         }
 
