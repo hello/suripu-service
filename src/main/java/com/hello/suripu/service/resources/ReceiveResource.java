@@ -300,16 +300,39 @@ public class ReceiveResource extends BaseResource {
 
 
         final String senseId = senseState.getSenseId();
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        final String ipAddress = getIpAddress(request);
+        final List<String> ipGroups = groupFlipper.getGroups(ipAddress);
 
         if (!senseId.equals(debugSenseId)) {
             LOGGER.error("error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
+        final Optional<byte[]> optionalKeyBytes = getKey(senseId, groups, ipAddress);
+
+        if (!optionalKeyBytes.isPresent()) {
+            LOGGER.error("error=key-store-failure sense_id={}", senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "");
+        }
+
+        final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
+
+        if (error.isPresent()) {
+            LOGGER.error("{} sense_id={}", error.get().message, senseId);
+            return plainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+
         // Update state in Dynamo
         senseStateDynamoDB.updateState(new SenseStateAtTime(senseState, DateTime.now(DateTimeZone.UTC)));
 
-        return body;
+        final Optional<byte[]> signedResponse = SignedMessage.sign(senseState.toByteArray(), optionalKeyBytes.get());
+        if (!signedResponse.isPresent()) {
+            LOGGER.error("Failed signing message");
+            return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
+        }
+
+        return signedResponse.get();
     }
 
 

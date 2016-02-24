@@ -276,7 +276,7 @@ public class ReceiveResourceIT extends ResourceTest {
     }
 
     @Test
-    public void testUpdateSenseState() {
+    public void testUpdateSenseState() throws Exception {
         BaseResourceTestHelper.stubGetClientDetails(oAuthTokenStore, Optional.of(BaseResourceTestHelper.getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(keyStore, SENSE_ID, Optional.of(KEY));
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
@@ -289,6 +289,9 @@ public class ReceiveResourceIT extends ResourceTest {
                 .build();
 
         final byte[] response = receiveResource.updateSenseState(signProtobuf(senseState, KEY));
+        final byte[] protobufBytes = Arrays.copyOfRange(response, 16 + 32, response.length);
+        final State.SenseState responseState = State.SenseState.parseFrom(protobufBytes);
+        assertThat(responseState, is(senseState));
     }
 
     @Test(expected= WebApplicationException.class)
