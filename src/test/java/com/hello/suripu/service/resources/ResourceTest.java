@@ -10,6 +10,7 @@ import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
+import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
@@ -51,6 +52,7 @@ public class ResourceTest {
     @Mock protected RolloutClient featureFlipper;
     @Mock protected MetricRegistry metricRegistry;
     @Mock protected Meter meter;
+    @Mock protected SenseStateDynamoDB senseStateDynamoDB;
 
     public void setUp(){
         MockitoAnnotations.initMocks(this);

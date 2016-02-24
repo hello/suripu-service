@@ -3,7 +3,9 @@ package com.hello.suripu.service.resources;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.hello.suripu.api.input.DataInputProtos;
+import com.hello.suripu.api.input.State;
 import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
@@ -12,6 +14,7 @@ import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.models.Alarm;
 import com.hello.suripu.core.models.RingTime;
+import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
@@ -25,11 +28,15 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
+
+import javax.ws.rs.WebApplicationException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -68,7 +75,8 @@ public class ReceiveResourceIT extends ResourceTest {
                 responseCommandsDAODynamoDB,
                 240,
                 calibrationDAO,
-                metricRegistry
+                metricRegistry,
+                senseStateDynamoDB
         );
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;
@@ -267,6 +275,67 @@ public class ReceiveResourceIT extends ResourceTest {
         }
     }
 
+    @Test
+    public void testUpdateSenseState() {
+        BaseResourceTestHelper.stubGetClientDetails(oAuthTokenStore, Optional.of(BaseResourceTestHelper.getAccessToken()));
+        BaseResourceTestHelper.stubKeyFromKeyStore(keyStore, SENSE_ID, Optional.of(KEY));
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
+
+        final State.SenseState senseState = State.SenseState.newBuilder()
+                .setSenseId(SENSE_ID)
+                .setAudioState(State.AudioState.newBuilder()
+                        .setPlayingAudio(false)
+                        .build())
+                .build();
+
+        final byte[] response = receiveResource.updateSenseState(signProtobuf(senseState, KEY));
+    }
+
+    @Test(expected= WebApplicationException.class)
+    public void testUpdateSenseStateNotMatchingSenseId() {
+        BaseResourceTestHelper.stubGetClientDetails(oAuthTokenStore, Optional.of(BaseResourceTestHelper.getAccessToken()));
+        BaseResourceTestHelper.stubKeyFromKeyStore(keyStore, SENSE_ID, Optional.of(KEY));
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
+
+        final State.SenseState senseState = State.SenseState.newBuilder()
+                .setSenseId("othersenseid")
+                .setAudioState(State.AudioState.newBuilder()
+                        .setPlayingAudio(false)
+                        .build())
+                .build();
+
+        final byte[] response = receiveResource.updateSenseState(signProtobuf(senseState, KEY));
+    }
+
+    @Test(expected= WebApplicationException.class)
+    public void testUpdateSenseStateMissingSenseHeader() {
+        BaseResourceTestHelper.stubGetClientDetails(oAuthTokenStore, Optional.of(BaseResourceTestHelper.getAccessToken()));
+        BaseResourceTestHelper.stubKeyFromKeyStore(keyStore, SENSE_ID, Optional.of(KEY));
+
+        final State.SenseState senseState = State.SenseState.newBuilder()
+                .setSenseId(SENSE_ID)
+                .setAudioState(State.AudioState.newBuilder()
+                        .setPlayingAudio(false)
+                        .build())
+                .build();
+
+        final byte[] response = receiveResource.updateSenseState(signProtobuf(senseState, KEY));
+    }
+
+
+    private byte[] signProtobuf(final Message protobuf, final byte[] key) {
+        final byte[] body  = protobuf.toByteArray();
+        final Optional<byte[]> signedOptional = SignedMessage.sign(body, key);
+        assertThat(signedOptional.isPresent(), is(true));
+        final byte[] signed = signedOptional.get();
+        final byte[] iv = Arrays.copyOfRange(signed, 0, 16);
+        final byte[] sig = Arrays.copyOfRange(signed, 16, 16 + 32);
+        final byte[] message = new byte[signed.length];
+        copyTo(message, body, 0, body.length);
+        copyTo(message, iv, body.length, body.length + iv.length);
+        copyTo(message, sig, body.length + iv.length, message.length);
+        return message;
+    }
 
     private byte[] generateValidProtobufWithSignature(final byte[] key, final Integer uptime, final Integer firmwareVersion, final Integer unixTime){
 
@@ -280,18 +349,7 @@ public class ReceiveResourceIT extends ResourceTest {
                 .addData(data)
                 .build();
 
-        final byte[] body  = batch.toByteArray();
-        final Optional<byte[]> signedOptional = SignedMessage.sign(body, key);
-        assertThat(signedOptional.isPresent(), is(true));
-        final byte[] signed = signedOptional.get();
-        final byte[] iv = Arrays.copyOfRange(signed, 0, 16);
-        final byte[] sig = Arrays.copyOfRange(signed, 16, 16 + 32);
-        final byte[] message = new byte[signed.length];
-        copyTo(message, body, 0, body.length);
-        copyTo(message, iv, body.length, body.length + iv.length);
-        copyTo(message, sig, body.length + iv.length, message.length);
-        return message;
-
+        return signProtobuf(batch, key);
     }
 
     private void copyTo(final byte[] dest, final byte[] src, final int start, final int end){
