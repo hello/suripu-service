@@ -17,6 +17,7 @@ import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
+import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
 import com.hello.suripu.coredw8.filters.SlowRequestsFilter;
@@ -112,7 +113,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
     @Override
     public void run(final SuripuConfiguration configuration, Environment environment) throws Exception {
-      environment.jersey().register(new JacksonProtobufProvider());
+        environment.jersey().register(new JacksonProtobufProvider());
 
         final DBIFactory factory = new DBIFactory();
         final DBI commonDB = factory.build(environment, configuration.getCommonDB(), "postgresql");
@@ -188,28 +189,28 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 120 // 2 minutes for cache
         );
 
-      if(configuration.getMetricsEnabled()) {
-        final String graphiteHostName = configuration.getGraphite().getHost();
-        final String apiKey = configuration.getGraphite().getApiKey();
-        final Integer interval = configuration.getGraphite().getReportingIntervalInSeconds();
+        if(configuration.getMetricsEnabled()) {
+          final String graphiteHostName = configuration.getGraphite().getHost();
+          final String apiKey = configuration.getGraphite().getApiKey();
+          final Integer interval = configuration.getGraphite().getReportingIntervalInSeconds();
 
-        final String env = (configuration.getDebug()) ? "dev" : "prod";
-        final String prefix = String.format("%s.%s.suripu-service", apiKey, env);
+          final String env = (configuration.getDebug()) ? "dev" : "prod";
+          final String prefix = String.format("%s.%s.suripu-service", apiKey, env);
 
-        final Graphite graphite = new Graphite(new InetSocketAddress(graphiteHostName, 2003));
+          final Graphite graphite = new Graphite(new InetSocketAddress(graphiteHostName, 2003));
 
-        final GraphiteReporter reporter = GraphiteReporter.forRegistry(environment.metrics())
-            .prefixedWith(prefix)
-            .convertRatesTo(TimeUnit.SECONDS)
-            .convertDurationsTo(TimeUnit.MILLISECONDS)
-            .filter(MetricFilter.ALL)
-            .build(graphite);
-        reporter.start(interval, TimeUnit.SECONDS);
+          final GraphiteReporter reporter = GraphiteReporter.forRegistry(environment.metrics())
+              .prefixedWith(prefix)
+              .convertRatesTo(TimeUnit.SECONDS)
+              .convertDurationsTo(TimeUnit.MILLISECONDS)
+              .filter(MetricFilter.ALL)
+              .build(graphite);
+          reporter.start(interval, TimeUnit.SECONDS);
 
-        LOGGER.info("Metrics enabled.");
-      } else {
-        LOGGER.warn("Metrics not enabled.");
-      }
+          LOGGER.info("Metrics enabled.");
+        } else {
+          LOGGER.warn("Metrics not enabled.");
+        }
 
         final FirmwareUpdateStore firmwareUpdateStore = FirmwareUpdateStore.create(
                 otaHistoryDAODynamoDB,
@@ -221,27 +222,27 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 firmwareUpgradePathDAO);
 
 
-      //Doing this programmatically instead of in config files
-      AbstractServerFactory sf = (AbstractServerFactory) configuration.getServerFactory();
-      // disable all default exception mappers
-      sf.setRegisterDefaultExceptionMappers(false);
+        //Doing this programmatically instead of in config files
+        AbstractServerFactory sf = (AbstractServerFactory) configuration.getServerFactory();
+        // disable all default exception mappers
+        sf.setRegisterDefaultExceptionMappers(false);
 
-      environment.jersey().register(new CustomJSONExceptionMapper(configuration.getDebug()));
+        environment.jersey().register(new CustomJSONExceptionMapper(configuration.getDebug()));
 
-      final AccessTokenDAO accessTokenDAO = commonDB.onDemand(AccessTokenDAO.class);
-      final ApplicationsDAO applicationsDAO = commonDB.onDemand(ApplicationsDAO.class);
-      final PersistentApplicationStore applicationStore = new PersistentApplicationStore(applicationsDAO);
-      final PersistentAccessTokenStore tokenStore = new PersistentAccessTokenStore(accessTokenDAO, applicationStore);
-      final DataLogger activityLogger = kinesisLoggerFactory.get(QueueName.ACTIVITY_STREAM);
-      environment.jersey().register(new AuthDynamicFeature(new OAuthCredentialAuthFilter.Builder<AccessToken>()
-          .setAuthenticator(new OAuthAuthenticator(tokenStore))
-          .setAuthorizer(new OAuthAuthorizer())
-          .setRealm("SUPER SECRET STUFF")
-          .setPrefix("Bearer")
-          .setLogger(activityLogger)
-          .buildAuthFilter()));
-      environment.jersey().register(ScopesAllowedDynamicFeature.class);
-      environment.jersey().register(new AuthValueFactoryProvider.Binder<>(AccessToken.class));
+        final AccessTokenDAO accessTokenDAO = commonDB.onDemand(AccessTokenDAO.class);
+        final ApplicationsDAO applicationsDAO = commonDB.onDemand(ApplicationsDAO.class);
+        final PersistentApplicationStore applicationStore = new PersistentApplicationStore(applicationsDAO);
+        final PersistentAccessTokenStore tokenStore = new PersistentAccessTokenStore(accessTokenDAO, applicationStore);
+        final DataLogger activityLogger = kinesisLoggerFactory.get(QueueName.ACTIVITY_STREAM);
+        environment.jersey().register(new AuthDynamicFeature(new OAuthCredentialAuthFilter.Builder<AccessToken>()
+            .setAuthenticator(new OAuthAuthenticator(tokenStore))
+            .setAuthorizer(new OAuthAuthorizer())
+            .setRealm("SUPER SECRET STUFF")
+            .setPrefix("Bearer")
+            .setLogger(activityLogger)
+            .buildAuthFilter()));
+        environment.jersey().register(ScopesAllowedDynamicFeature.class);
+        environment.jersey().register(new AuthValueFactoryProvider.Binder<>(AccessToken.class));
 
         final AmazonDynamoDB teamStoreDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.TEAMS);
         final TeamStore teamStore = new TeamStore(teamStoreDynamoDBClient, tableNames.get(DynamoDBTableName.TEAMS));
@@ -251,6 +252,10 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final String namespace = (configuration.getDebug()) ? "dev" : "prod";
         final AmazonDynamoDB featuresDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.FEATURES);
         final FeatureStore featureStore = new FeatureStore(featuresDynamoDBClient, tableNames.get(DynamoDBTableName.FEATURES), namespace);
+
+        final AmazonDynamoDB senseStateDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.SENSE_STATE);
+        final SenseStateDynamoDB senseStateDynamoDB = new SenseStateDynamoDB(senseStateDynamoDBClient, tableNames.get(DynamoDBTableName.SENSE_STATE));
+
 
         final RolloutModule module = new RolloutModule(featureStore, 30);
         ObjectGraphRoot.getInstance().init(module);
@@ -281,7 +286,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 respCommandsDAODynamoDB,
                 configuration.getRingDuration(),
                 calibrationDAO,
-                environment.metrics()
+                environment.metrics(),
+                senseStateDynamoDB
         );
 
 
