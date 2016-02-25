@@ -302,7 +302,6 @@ public class ReceiveResource extends BaseResource {
         final String senseId = senseState.getSenseId();
         final List<String> groups = groupFlipper.getGroups(senseId);
         final String ipAddress = getIpAddress(request);
-        final List<String> ipGroups = groupFlipper.getGroups(ipAddress);
 
         if (!senseId.equals(debugSenseId)) {
             LOGGER.error("error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
