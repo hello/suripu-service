@@ -181,6 +181,7 @@ dynamodb:
     sync_response_commands : prod_response_commands
     teams : teams
     calibration: prod_calibration
+    sense_state: prod_sense_state
 
   endpoints:
       alarm_info : http://dynamodb.us-east-1.amazonaws.com
@@ -194,3 +195,4 @@ dynamodb:
       sync_response_commands : http://dynamodb.us-east-1.amazonaws.com
       teams : http://dynamodb.us-east-1.amazonaws.com
       calibration : http://dynamodb.us-east-1.amazonaws.com
+      sense_state: http://dynamodb.us-east-1.amazonaws.com

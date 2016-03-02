@@ -14,6 +14,7 @@ import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.api.input.DataInputProtos;
+import com.hello.suripu.api.input.State;
 import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.CalibrationDAO;
@@ -23,6 +24,7 @@ import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB.ResponseCommand;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
+import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
@@ -32,6 +34,7 @@ import com.hello.suripu.core.models.Alarm;
 import com.hello.suripu.core.models.Calibration;
 import com.hello.suripu.core.models.CurrentRoomState;
 import com.hello.suripu.core.models.RingTime;
+import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.processors.OTAProcessor;
 import com.hello.suripu.core.processors.RingProcessor;
@@ -92,6 +95,7 @@ public class ReceiveResource extends BaseResource {
     private final KeyStore keyStore;
     private final MergedUserInfoDynamoDB mergedInfoDynamoDB;
     private final RingTimeHistoryDAODynamoDB ringTimeHistoryDAODynamoDB;
+    private final SenseStateDynamoDB senseStateDynamoDB;
 
     private final KinesisLoggerFactory kinesisLoggerFactory;
     private final Boolean debug;
@@ -124,7 +128,8 @@ public class ReceiveResource extends BaseResource {
                            final ResponseCommandsDAODynamoDB responseCommandsDAODynamoDB,
                            final int ringDurationSec,
                            final CalibrationDAO calibrationDAO,
-                           final MetricRegistry metricRegistry) {
+                           final MetricRegistry metricRegistry,
+                           final SenseStateDynamoDB senseStateDynamoDB) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
@@ -146,6 +151,7 @@ public class ReceiveResource extends BaseResource {
         this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
+        this.senseStateDynamoDB = senseStateDynamoDB;
     }
 
 
@@ -260,6 +266,75 @@ public class ReceiveResource extends BaseResource {
     }
 
 
+    @POST
+    @Path("/sense/state")
+    @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Timed
+    public byte[] updateSenseState(final byte[] body) {
+        final SignedMessage signedMessage = SignedMessage.parse(body);
+        final State.SenseState senseState;
+
+        String debugSenseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
+        if (debugSenseId == null) {
+            debugSenseId = "";
+        }
+
+        LOGGER.debug("DebugSenseId device_id = {}", debugSenseId);
+
+        try {
+            senseState = State.SenseState.parseFrom(signedMessage.body);
+        } catch (IOException exception) {
+            final String errorMessage = String.format("Failed parsing SenseState protobuf for deviceId = %s : %s", debugSenseId, exception.getMessage());
+            LOGGER.error(errorMessage);
+            return plainTextError(Response.Status.BAD_REQUEST, "bad request");
+        }
+
+        LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(senseState));
+        LOGGER.debug("Received valid SenseState {}", senseState.toString());
+
+        if (!senseState.hasSenseId() || senseState.getSenseId().isEmpty()) {
+            LOGGER.error("error=empty-device-id");
+            return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
+        }
+
+
+        final String senseId = senseState.getSenseId();
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        final String ipAddress = getIpAddress(request);
+
+        if (!senseId.equals(debugSenseId)) {
+            LOGGER.error("error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
+        }
+
+        final Optional<byte[]> optionalKeyBytes = getKey(senseId, groups, ipAddress);
+
+        if (!optionalKeyBytes.isPresent()) {
+            LOGGER.error("error=key-store-failure sense_id={}", senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "");
+        }
+
+        final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
+
+        if (error.isPresent()) {
+            LOGGER.error("{} sense_id={}", error.get().message, senseId);
+            return plainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+
+        // Update state in Dynamo
+        senseStateDynamoDB.updateState(new SenseStateAtTime(senseState, DateTime.now(DateTimeZone.UTC)));
+
+        final Optional<byte[]> signedResponse = SignedMessage.sign(senseState.toByteArray(), optionalKeyBytes.get());
+        if (!signedResponse.isPresent()) {
+            LOGGER.error("Failed signing message");
+            return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
+        }
+
+        return signedResponse.get();
+    }
+
+
     public static OutputProtos.SyncResponse.Builder setPillColors(final List<UserInfo> userInfoList,
                                                                   final OutputProtos.SyncResponse.Builder syncResponseBuilder) {
         final ArrayList<OutputProtos.SyncResponse.PillSettings> pillSettings = new ArrayList<>();
@@ -298,6 +373,7 @@ public class ReceiveResource extends BaseResource {
 
         final List<String> groups = groupFlipper.getGroups(deviceName);
         Boolean deviceHasOutOfSyncClock = false;
+        final Integer numMessagesInQueue = (batch.hasMessagesInQueue()) ? batch.getMessagesInQueue() : 0;
 
         for (int i = 0; i < batch.getDataCount(); i++) {
             final DataInputProtos.periodic_data data = batch.getData(i);
@@ -325,12 +401,13 @@ public class ReceiveResource extends BaseResource {
                         roundedDateTime
                 );
 
-                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={}",
+                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={} num_messages={}",
                         deviceName,
                         DateTime.now(),
                         roundedDateTime,
                         batch.getFirmwareVersion(),
-                        ipAddress);
+                        ipAddress,
+                        numMessagesInQueue);
 
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);
