@@ -373,6 +373,7 @@ public class ReceiveResource extends BaseResource {
 
         final List<String> groups = groupFlipper.getGroups(deviceName);
         Boolean deviceHasOutOfSyncClock = false;
+        final Integer numMessagesInQueue = (batch.hasMessagesInQueue()) ? batch.getMessagesInQueue() : 0;
 
         for (int i = 0; i < batch.getDataCount(); i++) {
             final DataInputProtos.periodic_data data = batch.getData(i);
@@ -400,12 +401,13 @@ public class ReceiveResource extends BaseResource {
                         roundedDateTime
                 );
 
-                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={}",
+                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={} num_messages={}",
                         deviceName,
                         DateTime.now(),
                         roundedDateTime,
                         batch.getFirmwareVersion(),
-                        ipAddress);
+                        ipAddress,
+                        numMessagesInQueue);
 
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);
