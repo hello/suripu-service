@@ -110,6 +110,7 @@ logging:
   level: INFO
   loggers:
     com.hello.suripu: INFO
+    com.amazonaws: WARN
   appenders:
     - type: file
       threshold: DEBUG
