@@ -107,9 +107,10 @@ server:
         ident: suripu-service-prod
 
 logging:
-  level: INFO
+  level: DEBUG
   loggers:
-    com.hello.suripu: INFO
+    com.hello.suripu: DEBUG
+    com.amazonaws: WARN
   appenders:
     - type: file
       threshold: INFO
