@@ -116,6 +116,7 @@ logging:
   level: INFO
   loggers:
     com.hello.suripu.service: DEBUG
+    com.amazonaws: WARN
   appenders:
      - type: console
 #    - type: file
