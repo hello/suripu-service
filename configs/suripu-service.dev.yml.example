@@ -169,7 +169,7 @@ kinesis_logger:
   origin: suripu-service
 
 aws_client_configuration:
-  metric_namespace: SuripuService
+  metric_namespace: suripu-service
   max_connections: 100
   connection_timeout: 100
   connection_max_idle_millis: 60000

@@ -132,9 +132,11 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AWSCredentialsProvider awsCredentialsProvider = new DefaultAWSCredentialsProviderChain();
         final AWSClientConfiguration awsConfiguration = configuration.getAwsClientConfiguration();
 
-        AwsSdkMetrics.enableDefaultMetrics();
-        AwsSdkMetrics.setCredentialProvider(awsCredentialsProvider);
-        AwsSdkMetrics.setMetricNameSpace(awsConfiguration.getMetricNamespace());
+        if(configuration.getMetricsEnabled()) {
+            AwsSdkMetrics.enableDefaultMetrics();
+            AwsSdkMetrics.setCredentialProvider(awsCredentialsProvider);
+            AwsSdkMetrics.setMetricNameSpace(awsConfiguration.getMetricNamespace());
+        }
 
         final ClientConfiguration AWSSdkClientConfig = new ClientConfiguration()
             .withConnectionTimeout(awsConfiguration.getConnectionTimeout())
