@@ -168,6 +168,13 @@ kinesis_logger:
   buffer_size: 100
   origin: suripu-service
 
+aws_client_configuration:
+  metric_namespace: SuripuService
+  max_connections: 100
+  connection_timeout: 100
+  connection_max_idle_millis: 60000
+  max_error_retry: 1
+
 aws_access_key_s3: AKIAJVQV7XJU23UWILSQ
 aws_access_secret_s3: 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
 

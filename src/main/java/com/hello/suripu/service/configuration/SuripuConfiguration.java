@@ -126,4 +126,8 @@ public class SuripuConfiguration extends Configuration {
     public NewDynamoDBConfiguration dynamoDBConfiguration(){
         return dynamoDBConfiguration;
     }
+
+    @JsonProperty("aws_client_configuration")
+    private AWSClientConfiguration awsClientConfiguration;
+    public AWSClientConfiguration getAwsClientConfiguration() { return this.awsClientConfiguration; }
 }
