@@ -64,6 +64,7 @@ import com.hello.suripu.coredw8.oauth.ScopesAllowedDynamicFeature;
 import com.hello.suripu.coredw8.oauth.stores.PersistentAccessTokenStore;
 import com.hello.suripu.coredw8.util.CustomJSONExceptionMapper;
 import com.hello.suripu.service.cli.CreateDynamoDBTables;
+import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
 import com.hello.suripu.service.modules.RolloutModule;
 import com.hello.suripu.service.resources.AudioResource;
@@ -125,21 +126,29 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final DeviceDAO deviceDAO = commonDB.onDemand(DeviceDAO.class);
 
+        final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
+
         // Checks Environment first and then instance profile.
         final AWSCredentialsProvider awsCredentialsProvider = new DefaultAWSCredentialsProviderChain();
+        final AWSClientConfiguration awsConfiguration = configuration.getAwsClientConfiguration();
 
-        AwsSdkMetrics.enableDefaultMetrics();
-        AwsSdkMetrics.setCredentialProvider(awsCredentialsProvider);
-        AwsSdkMetrics.setMetricNameSpace("suripu-service");
+        if(configuration.getMetricsEnabled()) {
+            AwsSdkMetrics.enableDefaultMetrics();
+            AwsSdkMetrics.setCredentialProvider(awsCredentialsProvider);
+            AwsSdkMetrics.setMetricNameSpace(awsConfiguration.getMetricNamespace());
+        }
 
-        final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
-        final ClientConfiguration clientConfig = new ClientConfiguration().withConnectionTimeout(200).withMaxErrorRetry(1).withMaxConnections(100);
-        final AmazonDynamoDBClientFactory dynamoDBFactory = AmazonDynamoDBClientFactory.create(awsCredentialsProvider, clientConfig, configuration.dynamoDBConfiguration());
+        final ClientConfiguration AWSSdkClientConfig = new ClientConfiguration()
+            .withConnectionTimeout(awsConfiguration.getConnectionTimeout())
+            .withConnectionMaxIdleMillis(awsConfiguration.getConnectionMaxIdleMillis())
+            .withMaxErrorRetry(awsConfiguration.getMaxErrorRetry())
+            .withMaxConnections(awsConfiguration.getMaxConnections());
 
+        final AmazonDynamoDBClientFactory dynamoDBFactory = AmazonDynamoDBClientFactory.create(awsCredentialsProvider, AWSSdkClientConfig, configuration.dynamoDBConfiguration());
 
         final AmazonDynamoDB senseKeyStoreDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.SENSE_KEY_STORE);
 
-        final AmazonS3Client s3Client = new AmazonS3Client(awsCredentialsProvider);
+        final AmazonS3Client s3Client = new AmazonS3Client(awsCredentialsProvider, AWSSdkClientConfig);
         final String bucketName = configuration.getAudioBucketName();
 
         final AmazonDynamoDB mergedInfoDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.ALARM_INFO);
@@ -176,9 +185,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final AmazonS3 amazonS3UrlSigner = new AmazonS3Client(s3credentials);
 
-
-        final ClientConfiguration kinesisClientConfiguration = new ClientConfiguration().withMaxConnections(100);
-        final AmazonKinesisAsyncClient kinesisClient = new AmazonKinesisAsyncClient(awsCredentialsProvider, kinesisClientConfiguration);
+        final AmazonKinesisAsyncClient kinesisClient = new AmazonKinesisAsyncClient(awsCredentialsProvider, AWSSdkClientConfig);
         kinesisClient.setEndpoint(configuration.getKinesisConfiguration().getEndpoint());
 
         final KinesisLoggerFactory kinesisLoggerFactory = new KinesisLoggerFactory(
