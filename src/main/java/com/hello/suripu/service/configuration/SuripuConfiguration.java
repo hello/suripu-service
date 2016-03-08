@@ -127,7 +127,17 @@ public class SuripuConfiguration extends Configuration {
         return dynamoDBConfiguration;
     }
 
-    @JsonProperty("aws_client_configuration")
-    private AWSClientConfiguration awsClientConfiguration;
-    public AWSClientConfiguration getAwsClientConfiguration() { return this.awsClientConfiguration; }
+    @JsonProperty("aws_metric_namespace")
+    private String awsMetricNamespace;
+    public String getAwsMetricNamespace() {
+        return awsMetricNamespace;
+    }
+
+    @JsonProperty("dynamo_client_configuration")
+    private AWSClientConfiguration dynamoClientConfiguration;
+    public AWSClientConfiguration getDynamoClientConfiguration() { return dynamoClientConfiguration; }
+
+    @JsonProperty("kinesis_client_configuration")
+    private AWSClientConfiguration kinesisClientConfiguration;
+    public AWSClientConfiguration getKinesisClientConfiguration() { return kinesisClientConfiguration; }
 }
