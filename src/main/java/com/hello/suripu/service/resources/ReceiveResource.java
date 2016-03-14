@@ -4,15 +4,12 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.annotation.Timed;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Message;
-import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
@@ -54,8 +51,9 @@ import com.hello.suripu.core.util.SenseLogLevelUtil;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
+import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
-import com.hello.suripu.service.utils.FileManifestUtil;
+import com.hello.suripu.service.file_sync.FileManifestUtil;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -74,11 +72,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -111,8 +107,7 @@ public class ReceiveResource extends BaseResource {
     private final SenseStateDynamoDB senseStateDynamoDB;
 
     // File endpoint
-    private final FileManifestDAO fileManifestDAO;
-    private final FileInfoDAO fileInfoDAO;
+    private final FileSynchronizer fileSynchronizer;
 
     private final KinesisLoggerFactory kinesisLoggerFactory;
     private final Boolean debug;
@@ -147,8 +142,7 @@ public class ReceiveResource extends BaseResource {
                            final CalibrationDAO calibrationDAO,
                            final MetricRegistry metricRegistry,
                            final SenseStateDynamoDB senseStateDynamoDB,
-                           final FileManifestDAO fileManifestDAO,
-                           final FileInfoDAO fileInfoDAO) {
+                           final FileSynchronizer fileSynchronizer) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
@@ -171,8 +165,7 @@ public class ReceiveResource extends BaseResource {
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
-        this.fileManifestDAO = fileManifestDAO;
-        this.fileInfoDAO = fileInfoDAO;
+        this.fileSynchronizer = fileSynchronizer;
     }
 
 
@@ -356,48 +349,6 @@ public class ReceiveResource extends BaseResource {
     }
 
 
-    private static FileSync.FileManifest.FileDownload toFileDownload(final FileInfo fileInfo) throws URISyntaxException {
-        final URI uri = new URI(fileInfo.uri);
-        final String host = uri.getHost(); // No scheme
-        final String url = uri.getPath(); // just the url path
-
-        final int sep = fileInfo.path.lastIndexOf("/");
-        final int pathStart = fileInfo.path.startsWith("/") ? 1 : 0; // Don't include leading slash, if present
-        final String fileName = fileInfo.path.substring(sep+1); // just the name/extension
-        final String filePath = fileInfo.path.substring(pathStart, sep); // just the file path, not including leading or trailing slashes
-
-        final ByteString sha = ByteString.copyFromUtf8(fileInfo.sha);
-
-        return FileSync.FileManifest.FileDownload.newBuilder()
-                .setHost(host)
-                .setUrl(url)
-                .setSdCardFilename(fileName)
-                .setSdCardPath(filePath)
-                .setSha1(sha)
-                .build();
-    }
-
-    private static List<FileSync.FileManifest.FileDownload> getFileDownloadsFromFileInfo(final List<FileInfo> fileInfoList) {
-
-        final List<FileSync.FileManifest.FileDownload> downloads = new ArrayList<>(fileInfoList.size());
-
-        for (final FileInfo fileInfo : fileInfoList) {
-            try {
-                downloads.add(toFileDownload(fileInfo));
-            } catch (URISyntaxException e) {
-                LOGGER.error("error=URISyntaxException uri={}", fileInfo.uri);
-            }
-        }
-
-        return downloads;
-    }
-
-    private FileSync.FileManifest getResponseManifest(final String senseId, final FileSync.FileManifest requestManifest) {
-        final List<FileInfo> expectedFileInfo = fileInfoDAO.getAll(requestManifest.getFirmwareVersion(), senseId);
-        final List<FileSync.FileManifest.FileDownload> expectedFileDownloads = getFileDownloadsFromFileInfo(expectedFileInfo);
-        return FileManifestUtil.getResponseManifest(requestManifest, expectedFileDownloads);
-    }
-
     @POST
     @Path("/sense/files")
     @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
@@ -457,20 +408,16 @@ public class ReceiveResource extends BaseResource {
         }
         // END TODO
 
-        // Update state in Dynamo
-        fileManifestDAO.updateManifest(senseId, fileManifest);
-
         if (!fileManifest.hasFirmwareVersion()) {
             LOGGER.error("error=no-firmware-version sense-id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
         }
 
-        // TODO log errors in fileManifest
+        // Synchronize
+        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest);
 
-        final FileSync.FileManifest newManifest = getResponseManifest(senseId, fileManifest);
-
-        // TODO query delay
-        final FileSync.FileManifest withQueryDelay = FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(1000).build();
+        // TODO adjust query delay using feature flipper
+        final FileSync.FileManifest withQueryDelay = FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build();
 
         // TODO this could most likely be refactored as well
         final Optional<byte[]> signedResponse = SignedMessage.sign(withQueryDelay.toByteArray(), optionalKeyBytes.get());

@@ -1,4 +1,4 @@
-package com.hello.suripu.service.utils;
+package com.hello.suripu.service.file_sync;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -77,8 +77,8 @@ public class FileManifestUtil {
      * @param expectedFileDownloads FileDownloads that should be present on the Sense.
      * @return The new FileManifest that sense should have based on the diff between the requestManifest and expectedFileDownloads.
      */
-    public static FileSync.FileManifest getResponseManifest(final FileSync.FileManifest requestManifest,
-                                                            final List<FileSync.FileManifest.FileDownload> expectedFileDownloads)
+    static FileSync.FileManifest getResponseManifest(final FileSync.FileManifest requestManifest,
+                                                     final List<FileSync.FileManifest.FileDownload> expectedFileDownloads)
     {
         final List<FileSync.FileManifest.FileDownload> reportedFileDownloads = getFileDownloadsFromFiles(requestManifest.getFileInfoList());
 
@@ -87,5 +87,11 @@ public class FileManifestUtil {
         return FileSync.FileManifest.newBuilder()
                 .addAllFileInfo(newFiles)
                 .build();
+    }
+
+
+    static String getErrorMessage(final FileSync.FileManifest.FileOperationError error) {
+        return String.format("filename=%s err_type=%s err_code=%s",
+                error.getFilename(), error.getErrType(), error.getErrCode());
     }
 }

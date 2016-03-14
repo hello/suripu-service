@@ -23,6 +23,7 @@ import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
+import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.modules.RolloutModule;
 import com.librato.rollout.RolloutClient;
 import org.mockito.Mock;
@@ -55,8 +56,7 @@ public class ResourceTest {
     @Mock protected MetricRegistry metricRegistry;
     @Mock protected Meter meter;
     @Mock protected SenseStateDynamoDB senseStateDynamoDB;
-    @Mock protected FileManifestDAO fileManifestDAO;
-    @Mock protected FileInfoDAO fileInfoDAO;
+    @Mock protected FileSynchronizer fileSynchronizer;
 
     public void setUp(){
         MockitoAnnotations.initMocks(this);

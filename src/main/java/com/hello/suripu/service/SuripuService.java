@@ -69,6 +69,7 @@ import com.hello.suripu.coredw8.util.CustomJSONExceptionMapper;
 import com.hello.suripu.service.cli.CreateDynamoDBTables;
 import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
+import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.modules.RolloutModule;
 import com.hello.suripu.service.resources.AudioResource;
 import com.hello.suripu.service.resources.CheckResource;
@@ -316,8 +317,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 calibrationDAO,
                 environment.metrics(),
                 senseStateDynamoDB,
-                fileManifestDAO,
-                fileInfoDAO
+                FileSynchronizer.create(fileInfoDAO, fileManifestDAO)
         );
 
 
