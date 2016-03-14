@@ -27,6 +27,12 @@ public class FileManifestUtil {
         return map;
     }
 
+    private static Boolean equalFileDownloads(final FileSync.FileManifest.FileDownload a, final FileSync.FileManifest.FileDownload b) {
+        return a.getSdCardPath().equals(b.getSdCardPath()) &&
+                a.getSdCardFilename().equals(b.getSdCardFilename()) &&
+                a.getSha1().equals(b.getSha1());
+    }
+
     private static List<FileSync.FileManifest.File> newFileListFromReportedAndExpected(
             final List<FileSync.FileManifest.FileDownload> senseReportedFileDownloads,
             final List<FileSync.FileManifest.FileDownload> expectedFileDownloads)
@@ -38,8 +44,8 @@ public class FileManifestUtil {
 
         // Additions/updates
         for (final Map.Entry<String, FileSync.FileManifest.FileDownload> expectedEntry : expectedMap.entrySet()) {
-            final Boolean shouldUpdate = senseReportedMap.containsKey(expectedEntry.getKey()) &&
-                    senseReportedMap.get(expectedEntry.getKey()).equals(expectedEntry.getValue());
+            final Boolean shouldUpdate = !senseReportedMap.containsKey(expectedEntry.getKey()) ||
+                    !equalFileDownloads(senseReportedMap.get(expectedEntry.getKey()), expectedEntry.getValue());
             files.add(FileSync.FileManifest.File.newBuilder()
                     .setDownloadInfo(expectedEntry.getValue())
                     .setUpdateFile(shouldUpdate)
@@ -86,6 +92,7 @@ public class FileManifestUtil {
 
         return FileSync.FileManifest.newBuilder()
                 .addAllFileInfo(newFiles)
+                .setSenseId(requestManifest.getSenseId())
                 .build();
     }
 
