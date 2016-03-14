@@ -4,20 +4,27 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.annotation.Timed;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
+import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.api.input.DataInputProtos;
+import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.api.input.State;
 import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.CalibrationDAO;
+import com.hello.suripu.core.db.FileInfoDAO;
+import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.db.KeyStoreDynamoDB;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
@@ -33,6 +40,7 @@ import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.models.Alarm;
 import com.hello.suripu.core.models.Calibration;
 import com.hello.suripu.core.models.CurrentRoomState;
+import com.hello.suripu.core.models.FileInfo;
 import com.hello.suripu.core.models.RingTime;
 import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
@@ -47,6 +55,7 @@ import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.models.UploadSettings;
+import com.hello.suripu.service.utils.FileManifestUtil;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -65,7 +74,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -96,6 +109,10 @@ public class ReceiveResource extends BaseResource {
     private final MergedUserInfoDynamoDB mergedInfoDynamoDB;
     private final RingTimeHistoryDAODynamoDB ringTimeHistoryDAODynamoDB;
     private final SenseStateDynamoDB senseStateDynamoDB;
+
+    // File endpoint
+    private final FileManifestDAO fileManifestDAO;
+    private final FileInfoDAO fileInfoDAO;
 
     private final KinesisLoggerFactory kinesisLoggerFactory;
     private final Boolean debug;
@@ -129,7 +146,9 @@ public class ReceiveResource extends BaseResource {
                            final int ringDurationSec,
                            final CalibrationDAO calibrationDAO,
                            final MetricRegistry metricRegistry,
-                           final SenseStateDynamoDB senseStateDynamoDB) {
+                           final SenseStateDynamoDB senseStateDynamoDB,
+                           final FileManifestDAO fileManifestDAO,
+                           final FileInfoDAO fileInfoDAO) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
@@ -152,6 +171,8 @@ public class ReceiveResource extends BaseResource {
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
+        this.fileManifestDAO = fileManifestDAO;
+        this.fileInfoDAO = fileInfoDAO;
     }
 
 
@@ -326,6 +347,133 @@ public class ReceiveResource extends BaseResource {
         senseStateDynamoDB.updateState(new SenseStateAtTime(senseState, DateTime.now(DateTimeZone.UTC)));
 
         final Optional<byte[]> signedResponse = SignedMessage.sign(senseState.toByteArray(), optionalKeyBytes.get());
+        if (!signedResponse.isPresent()) {
+            LOGGER.error("Failed signing message");
+            return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
+        }
+
+        return signedResponse.get();
+    }
+
+
+    private static FileSync.FileManifest.FileDownload toFileDownload(final FileInfo fileInfo) throws URISyntaxException {
+        final URI uri = new URI(fileInfo.uri);
+        final String host = uri.getHost(); // No scheme
+        final String url = uri.getPath(); // just the url path
+
+        final int sep = fileInfo.path.lastIndexOf("/");
+        final int pathStart = fileInfo.path.startsWith("/") ? 1 : 0; // Don't include leading slash, if present
+        final String fileName = fileInfo.path.substring(sep+1); // just the name/extension
+        final String filePath = fileInfo.path.substring(pathStart, sep); // just the file path, not including leading or trailing slashes
+
+        final ByteString sha = ByteString.copyFromUtf8(fileInfo.sha);
+
+        return FileSync.FileManifest.FileDownload.newBuilder()
+                .setHost(host)
+                .setUrl(url)
+                .setSdCardFilename(fileName)
+                .setSdCardPath(filePath)
+                .setSha1(sha)
+                .build();
+    }
+
+    private static List<FileSync.FileManifest.FileDownload> getFileDownloadsFromFileInfo(final List<FileInfo> fileInfoList) {
+
+        final List<FileSync.FileManifest.FileDownload> downloads = new ArrayList<>(fileInfoList.size());
+
+        for (final FileInfo fileInfo : fileInfoList) {
+            try {
+                downloads.add(toFileDownload(fileInfo));
+            } catch (URISyntaxException e) {
+                LOGGER.error("error=URISyntaxException uri={}", fileInfo.uri);
+            }
+        }
+
+        return downloads;
+    }
+
+    private FileSync.FileManifest getResponseManifest(final String senseId, final FileSync.FileManifest requestManifest) {
+        final List<FileInfo> expectedFileInfo = fileInfoDAO.getAll(requestManifest.getFirmwareVersion(), senseId);
+        final List<FileSync.FileManifest.FileDownload> expectedFileDownloads = getFileDownloadsFromFileInfo(expectedFileInfo);
+        return FileManifestUtil.getResponseManifest(requestManifest, expectedFileDownloads);
+    }
+
+    @POST
+    @Path("/sense/files")
+    @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Timed
+    public byte[] updateFileManifest(final byte[] body) {
+        // TODO ALL OF this needs to be refactored.
+        String debugSenseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
+        if (debugSenseId == null) {
+            debugSenseId = "";
+        }
+
+        LOGGER.debug("DebugSenseId device_id = {}", debugSenseId);
+
+        final SignedMessage signedMessage = SignedMessage.parse(body);
+        final FileSync.FileManifest fileManifest;
+
+        try {
+            fileManifest = FileSync.FileManifest.parseFrom(signedMessage.body);
+        } catch (IOException exception) {
+            final String errorMessage = String.format("Failed parsing protobuf for deviceId = %s : %s",
+                    debugSenseId, exception.getMessage());
+            LOGGER.error(errorMessage);
+            return plainTextError(Response.Status.BAD_REQUEST, "bad request");
+        }
+
+        LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(fileManifest));
+        LOGGER.debug("Received valid protobuf {}", fileManifest.toString());
+
+        if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
+            LOGGER.error("error=empty-device-id");
+            return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
+        }
+
+
+        final String senseId = fileManifest.getSenseId();
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        final String ipAddress = getIpAddress(request);
+
+        if (!senseId.equals(debugSenseId)) {
+            LOGGER.error("error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
+        }
+
+        final Optional<byte[]> optionalKeyBytes = getKey(senseId, groups, ipAddress);
+
+        if (!optionalKeyBytes.isPresent()) {
+            LOGGER.error("error=key-store-failure sense_id={}", senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "");
+        }
+
+        final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
+
+        if (error.isPresent()) {
+            LOGGER.error("{} sense_id={}", error.get().message, senseId);
+            return plainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+        // END TODO
+
+        // Update state in Dynamo
+        fileManifestDAO.updateManifest(senseId, fileManifest);
+
+        if (!fileManifest.hasFirmwareVersion()) {
+            LOGGER.error("error=no-firmware-version sense-id={}", senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
+        }
+
+        // TODO log errors in fileManifest
+
+        final FileSync.FileManifest newManifest = getResponseManifest(senseId, fileManifest);
+
+        // TODO query delay
+        final FileSync.FileManifest withQueryDelay = FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(1000).build();
+
+        // TODO this could most likely be refactored as well
+        final Optional<byte[]> signedResponse = SignedMessage.sign(withQueryDelay.toByteArray(), optionalKeyBytes.get());
         if (!signedResponse.isPresent()) {
             LOGGER.error("Failed signing message");
             return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");

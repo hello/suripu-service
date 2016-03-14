@@ -76,7 +76,9 @@ public class ReceiveResourceIT extends ResourceTest {
                 240,
                 calibrationDAO,
                 metricRegistry,
-                senseStateDynamoDB
+                senseStateDynamoDB,
+                fileManifestDAO,
+                fileInfoDAO
         );
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;
