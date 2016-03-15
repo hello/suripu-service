@@ -1,5 +1,7 @@
 package com.hello.suripu.service.file_sync;
 
+import com.amazonaws.HttpMethod;
+import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
@@ -11,6 +13,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.net.URL;
+import java.util.Date;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -23,17 +27,23 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
  */
 public class FileSynchronizerTest {
 
-    FileInfoDAO fileInfoDAO;
-    FileManifestDAO fileManifestDAO;
-    FileSynchronizer fileSynchronizer;
+    private FileInfoDAO fileInfoDAO;
+    private FileManifestDAO fileManifestDAO;
+    private AmazonS3 s3Signer;
+
+    private FileSynchronizer fileSynchronizer;
 
     @Before
     public void setUp() {
         fileInfoDAO = Mockito.mock(FileInfoDAO.class);
         fileManifestDAO = Mockito.mock(FileManifestDAO.class);
-        fileSynchronizer = FileSynchronizer.create(fileInfoDAO, fileManifestDAO);
+        s3Signer = Mockito.mock(AmazonS3.class);
+        final Long PRESIGNED_URL_EXPIRATION_MINUTES = 0L;
+        final Long FILE_DOWNLOAD_CACHE_EXPIRATION_MINUTES = 0L;
+        fileSynchronizer = FileSynchronizer.create(
+                fileInfoDAO, fileManifestDAO, s3Signer,
+                FILE_DOWNLOAD_CACHE_EXPIRATION_MINUTES, PRESIGNED_URL_EXPIRATION_MINUTES);
     }
-
 
 
     @Test
@@ -43,7 +53,7 @@ public class FileSynchronizerTest {
 
         final String fileName = "file";
         final String path = "path";
-        final String url = "url";
+        final String url = "url.xml?query";
         final String host = "host";
         final ByteString sha = ByteString.copyFromUtf8("sha");
         final FileSync.FileManifest manifest = FileSync.FileManifest.newBuilder()
@@ -63,6 +73,8 @@ public class FileSynchronizerTest {
 
         Mockito.when(fileManifestDAO.updateManifest(Mockito.anyString(), Mockito.eq(manifest))).thenReturn(Optional.of(manifest));
         Mockito.when(fileInfoDAO.getAll(firmwareVersion, senseId)).thenReturn(fileInfoList);
+        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.anyString(), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
+                .thenReturn(new URL("http", host, 80, url));
 
         final FileSync.FileManifest responseManifest = fileSynchronizer.synchronizeFileManifest(senseId, manifest);
         assertThat(responseManifest.getFileInfoCount(), is(1));
@@ -83,7 +95,7 @@ public class FileSynchronizerTest {
     public void testSynchronizeFileManifest() throws Exception  {
         final Integer firmwareVersion = 5;
         final String senseId = "sense";
-        
+
         final FileInfo noLeadingSlash = FileInfo.newBuilder()
                 .withFileType(FileInfo.FileType.SLEEP_SOUND)
                 .withId(1L)
@@ -116,6 +128,10 @@ public class FileSynchronizerTest {
 
         Mockito.when(fileManifestDAO.updateManifest(Mockito.anyString(), Mockito.eq(manifest))).thenReturn(Optional.of(manifest));
         Mockito.when(fileInfoDAO.getAll(firmwareVersion, senseId)).thenReturn(fileInfoList);
+        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("/noLeadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
+                .thenReturn(new URL("http", "localhost", 80, "/noLeadingSlash"));
+        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("/leadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
+                .thenReturn(new URL("http", "localhost", 80, "/leadingSlash"));
 
         final FileSync.FileManifest responseManifest = fileSynchronizer.synchronizeFileManifest(senseId, manifest);
         assertThat(responseManifest.getFileInfoCount(), is(2));

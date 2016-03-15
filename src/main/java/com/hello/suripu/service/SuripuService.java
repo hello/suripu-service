@@ -317,7 +317,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 calibrationDAO,
                 environment.metrics(),
                 senseStateDynamoDB,
-                FileSynchronizer.create(fileInfoDAO, fileManifestDAO)
+                FileSynchronizer.create(fileInfoDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L) // TODO move to config
         );
 
 
