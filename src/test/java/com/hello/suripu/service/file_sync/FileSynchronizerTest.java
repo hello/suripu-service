@@ -9,6 +9,7 @@ import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.core.db.FileInfoDAO;
 import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.models.FileInfo;
+import org.apache.commons.codec.binary.Hex;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -95,6 +96,8 @@ public class FileSynchronizerTest {
     public void testSynchronizeFileManifest() throws Exception  {
         final Integer firmwareVersion = 5;
         final String senseId = "sense";
+        final String leadingSlashSha = "b2";
+        final String noLeadingSlashSha = "b3";
 
         final FileInfo noLeadingSlash = FileInfo.newBuilder()
                 .withFileType(FileInfo.FileType.SLEEP_SOUND)
@@ -103,7 +106,7 @@ public class FileSynchronizerTest {
                 .withName("noLeadingSlash")
                 .withPath("path/noLeadingSlash")
                 .withPreviewUri("preview")
-                .withSha("noLeadingSlash")
+                .withSha(noLeadingSlashSha)
                 .withUri("http://localhost/noLeadingSlash")
                 .withFirmwareVersion(1)
                 .build();
@@ -114,7 +117,7 @@ public class FileSynchronizerTest {
                 .withName("leadingSlash")
                 .withPath("/path/to/leadingSlash")
                 .withPreviewUri("preview")
-                .withSha("leadingSlash")
+                .withSha(leadingSlashSha)
                 .withUri("http://localhost/leadingSlash")
                 .withFirmwareVersion(1)
                 .build();
@@ -141,7 +144,7 @@ public class FileSynchronizerTest {
                         .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
                                 .setSdCardPath("path")
                                 .setSdCardFilename("noLeadingSlash")
-                                .setSha1(ByteString.copyFromUtf8(noLeadingSlash.sha))
+                                .setSha1(ByteString.copyFrom(Hex.decodeHex(noLeadingSlash.sha.toCharArray())))
                                 .setUrl("/noLeadingSlash")
                                 .setHost("localhost")
                                 .build())
@@ -152,7 +155,7 @@ public class FileSynchronizerTest {
                         .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
                                 .setSdCardPath("path/to")
                                 .setSdCardFilename("leadingSlash")
-                                .setSha1(ByteString.copyFromUtf8(leadingSlash.sha))
+                                .setSha1(ByteString.copyFrom(Hex.decodeHex(leadingSlash.sha.toCharArray())))
                                 .setUrl("/leadingSlash")
                                 .setHost("localhost")
                                 .build())
