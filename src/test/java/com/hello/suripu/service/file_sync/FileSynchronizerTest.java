@@ -83,13 +83,7 @@ public class FileSynchronizerTest {
     public void testSynchronizeFileManifest() throws Exception  {
         final Integer firmwareVersion = 5;
         final String senseId = "sense";
-
-        final String fileName = "file";
-        final String path = "path";
-        final String url = "url";
-        final String host = "host";
-        final ByteString sha = ByteString.copyFromUtf8("sha");
-
+        
         final FileInfo noLeadingSlash = FileInfo.newBuilder()
                 .withFileType(FileInfo.FileType.SLEEP_SOUND)
                 .withId(1L)
