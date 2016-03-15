@@ -68,8 +68,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -401,7 +399,7 @@ public class ReceiveResource extends BaseResource {
             LOGGER.error("{} sense_id={}", error.get().message, senseId);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
-        // END TODO
+        // END refactoring TODO
 
         if (!fileManifest.hasFirmwareVersion()) {
             LOGGER.error("error=no-firmware-version sense-id={}", senseId);
