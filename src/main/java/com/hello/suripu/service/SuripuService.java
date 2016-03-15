@@ -18,6 +18,9 @@ import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
+import com.hello.suripu.core.db.FileInfoDAO;
+import com.hello.suripu.core.db.FileManifestDAO;
+import com.hello.suripu.core.db.FileManifestDynamoDB;
 import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
@@ -66,6 +69,7 @@ import com.hello.suripu.coredw8.util.CustomJSONExceptionMapper;
 import com.hello.suripu.service.cli.CreateDynamoDBTables;
 import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
+import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.modules.RolloutModule;
 import com.hello.suripu.service.resources.AudioResource;
 import com.hello.suripu.service.resources.CheckResource;
@@ -125,6 +129,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
         commonDB.registerArgumentFactory(new PostgresIntegerArrayArgumentFactory());
 
         final DeviceDAO deviceDAO = commonDB.onDemand(DeviceDAO.class);
+
+        final FileInfoDAO fileInfoDAO = commonDB.onDemand(FileInfoDAO.class);
 
         final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
 
@@ -276,6 +282,9 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AmazonDynamoDB senseStateDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.SENSE_STATE);
         final SenseStateDynamoDB senseStateDynamoDB = new SenseStateDynamoDB(senseStateDynamoDBClient, tableNames.get(DynamoDBTableName.SENSE_STATE));
 
+        final AmazonDynamoDB fileManifestDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.FILE_MANIFEST);
+        final FileManifestDAO fileManifestDAO = new FileManifestDynamoDB(fileManifestDynamoDBClient, tableNames.get(DynamoDBTableName.FILE_MANIFEST));
+
 
         final RolloutModule module = new RolloutModule(featureStore, 30);
         ObjectGraphRoot.getInstance().init(module);
@@ -307,7 +316,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 configuration.getRingDuration(),
                 calibrationDAO,
                 environment.metrics(),
-                senseStateDynamoDB
+                senseStateDynamoDB,
+                FileSynchronizer.create(fileInfoDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L) // TODO move to config
         );
 
 

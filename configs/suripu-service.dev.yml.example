@@ -205,6 +205,7 @@ dynamodb:
     teams : teams
     calibration: calibration
     sense_state: sense_state
+    file_manifest: file_manifest
 
   endpoints:
       alarm_info : http://localhost:7777
@@ -219,3 +220,4 @@ dynamodb:
       teams : http://localhost:7777
       calibration: http://localhost:7777
       sense_state: http://localhost:7777
+      file_manifest: file_manifest
