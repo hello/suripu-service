@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.hello.suripu.api.input.DataInputProtos;
+import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.api.input.State;
 import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
@@ -76,7 +77,8 @@ public class ReceiveResourceIT extends ResourceTest {
                 240,
                 calibrationDAO,
                 metricRegistry,
-                senseStateDynamoDB
+                senseStateDynamoDB,
+                fileSynchronizer
         );
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;
@@ -273,6 +275,52 @@ public class ReceiveResourceIT extends ResourceTest {
             e.printStackTrace();
             assertThat(true, is(false));
         }
+    }
+
+    @Test
+    public void testUpdateFileManifest() throws Exception {
+        BaseResourceTestHelper.stubGetClientDetails(oAuthTokenStore, Optional.of(BaseResourceTestHelper.getAccessToken()));
+        BaseResourceTestHelper.stubKeyFromKeyStore(keyStore, SENSE_ID, Optional.of(KEY));
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
+
+        final FileSync.FileManifest requestManifest = FileSync.FileManifest.newBuilder()
+                .setFirmwareVersion(1)
+                .setSenseId(SENSE_ID)
+                .build();
+
+        // Response is same as request but with a file added
+        final FileSync.FileManifest newManifest = FileSync.FileManifest.newBuilder(requestManifest)
+                .addFileInfo(FileSync.FileManifest.File.newBuilder()
+                        .setUpdateFile(true)
+                        .setDeleteFile(false)
+                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
+                                .setHost("host")
+                                .setUrl("url")
+                                .setSdCardPath("path")
+                                .setSdCardFilename("file")
+                                .build())
+                        .build())
+                .build();
+
+        BaseResourceTestHelper.stubSynchronizeFileManifest(fileSynchronizer, newManifest);
+
+        final byte[] response = receiveResource.updateFileManifest(signProtobuf(requestManifest, KEY));
+        final byte[] protobufBytes = Arrays.copyOfRange(response, 16 + 32, response.length);
+        final FileSync.FileManifest responseManifest = FileSync.FileManifest.parseFrom(protobufBytes);
+        assertThat(responseManifest, is(FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build()));
+    }
+
+    @Test(expected= WebApplicationException.class)
+    public void testUpdateFileManifestValidateFirmwareVersion() throws Exception {
+        BaseResourceTestHelper.stubGetClientDetails(oAuthTokenStore, Optional.of(BaseResourceTestHelper.getAccessToken()));
+        BaseResourceTestHelper.stubKeyFromKeyStore(keyStore, SENSE_ID, Optional.of(KEY));
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
+
+        final FileSync.FileManifest requestManifest = FileSync.FileManifest.newBuilder()
+                .setSenseId(SENSE_ID)
+                .build();
+
+        receiveResource.updateFileManifest(signProtobuf(requestManifest, KEY));
     }
 
     @Test

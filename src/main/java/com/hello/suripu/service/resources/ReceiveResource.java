@@ -14,6 +14,7 @@ import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.api.input.DataInputProtos;
+import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.api.input.State;
 import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
@@ -46,6 +47,7 @@ import com.hello.suripu.core.util.SenseLogLevelUtil;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
+import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
@@ -97,6 +99,9 @@ public class ReceiveResource extends BaseResource {
     private final RingTimeHistoryDAODynamoDB ringTimeHistoryDAODynamoDB;
     private final SenseStateDynamoDB senseStateDynamoDB;
 
+    // File endpoint
+    private final FileSynchronizer fileSynchronizer;
+
     private final KinesisLoggerFactory kinesisLoggerFactory;
     private final Boolean debug;
 
@@ -129,7 +134,8 @@ public class ReceiveResource extends BaseResource {
                            final int ringDurationSec,
                            final CalibrationDAO calibrationDAO,
                            final MetricRegistry metricRegistry,
-                           final SenseStateDynamoDB senseStateDynamoDB) {
+                           final SenseStateDynamoDB senseStateDynamoDB,
+                           final FileSynchronizer fileSynchronizer) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
@@ -152,6 +158,7 @@ public class ReceiveResource extends BaseResource {
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
+        this.fileSynchronizer = fileSynchronizer;
     }
 
 
@@ -335,6 +342,88 @@ public class ReceiveResource extends BaseResource {
     }
 
 
+    @POST
+    @Path("/sense/files")
+    @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Timed
+    public byte[] updateFileManifest(final byte[] body) {
+        // TODO ALL OF this needs to be refactored.
+        String debugSenseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
+        if (debugSenseId == null) {
+            debugSenseId = "";
+        }
+
+        LOGGER.info("endpoint=files debug-sense-id={}", debugSenseId);
+
+        final SignedMessage signedMessage = SignedMessage.parse(body);
+        final FileSync.FileManifest fileManifest;
+
+        try {
+            fileManifest = FileSync.FileManifest.parseFrom(signedMessage.body);
+        } catch (IOException exception) {
+            final String errorMessage = String.format("Failed parsing protobuf for deviceId = %s : %s",
+                    debugSenseId, exception.getMessage());
+            LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
+                    debugSenseId, exception.getMessage());
+            return plainTextError(Response.Status.BAD_REQUEST, "bad request");
+        }
+
+        LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
+        LOGGER.info("endpoint=files valid-protobuf={}", fileManifest.toString());
+
+        if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
+            LOGGER.error("endpoint=files error=empty-device-id");
+            return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
+        }
+
+
+        final String senseId = fileManifest.getSenseId();
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        final String ipAddress = getIpAddress(request);
+
+        if (!senseId.equals(debugSenseId)) {
+            LOGGER.error("endpoint=files error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
+        }
+
+        final Optional<byte[]> optionalKeyBytes = getKey(senseId, groups, ipAddress);
+
+        if (!optionalKeyBytes.isPresent()) {
+            LOGGER.error("endpoint=files error=key-store-failure sense_id={}", senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "");
+        }
+
+        final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
+
+        if (error.isPresent()) {
+            LOGGER.error("endpoint=files signed-message-error={} sense_id={}", error.get().message, senseId);
+            return plainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+        // END refactoring TODO
+
+        if (!fileManifest.hasFirmwareVersion()) {
+            LOGGER.error("endpoint=files error=no-firmware-version sense-id={}", senseId);
+            return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
+        }
+
+        // Synchronize
+        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest);
+
+        // TODO adjust query delay using feature flipper
+        final FileSync.FileManifest withQueryDelay = FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build();
+
+        // TODO this could most likely be refactored as well
+        final Optional<byte[]> signedResponse = SignedMessage.sign(withQueryDelay.toByteArray(), optionalKeyBytes.get());
+        if (!signedResponse.isPresent()) {
+            LOGGER.error("endpoint=files error=failed-signing-message sense-id={}", senseId);
+            return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
+        }
+
+        return signedResponse.get();
+    }
+
+
     public static OutputProtos.SyncResponse.Builder setPillColors(final List<UserInfo> userInfoList,
                                                                   final OutputProtos.SyncResponse.Builder syncResponseBuilder) {
         final ArrayList<OutputProtos.SyncResponse.PillSettings> pillSettings = new ArrayList<>();
@@ -373,6 +462,7 @@ public class ReceiveResource extends BaseResource {
 
         final List<String> groups = groupFlipper.getGroups(deviceName);
         Boolean deviceHasOutOfSyncClock = false;
+        final Integer numMessagesInQueue = (batch.hasMessagesInQueue()) ? batch.getMessagesInQueue() : 0;
 
         for (int i = 0; i < batch.getDataCount(); i++) {
             final DataInputProtos.periodic_data data = batch.getData(i);
@@ -400,12 +490,13 @@ public class ReceiveResource extends BaseResource {
                         roundedDateTime
                 );
 
-                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={}",
+                LOGGER.error("error=clock-out-of-sync sense_id={} current_time={} received_time={} fw_version={} ip_address={} num_messages={}",
                         deviceName,
                         DateTime.now(),
                         roundedDateTime,
                         batch.getFirmwareVersion(),
-                        ipAddress);
+                        ipAddress,
+                        numMessagesInQueue);
 
                 // TODO: throw exception?
                 senseClockOutOfSync.mark(1);

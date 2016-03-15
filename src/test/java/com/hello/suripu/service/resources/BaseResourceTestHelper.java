@@ -1,6 +1,7 @@
 package com.hello.suripu.service.resources;
 
 import com.google.common.base.Optional;
+import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.KeyStore;
@@ -13,6 +14,8 @@ import com.hello.suripu.core.oauth.MissingRequiredScopeException;
 import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
 import java.util.UUID;
+
+import com.hello.suripu.service.file_sync.FileSynchronizer;
 import org.joda.time.DateTime;
 import org.mockito.Mockito;
 
@@ -57,5 +60,9 @@ public class BaseResourceTestHelper {
         } catch (MissingRequiredScopeException e) {
             return Optional.absent();
         }
+    }
+
+    public static void stubSynchronizeFileManifest(final FileSynchronizer synchronizer, final FileSync.FileManifest newManifest) {
+        when(synchronizer.synchronizeFileManifest(Mockito.anyString(), Mockito.any(FileSync.FileManifest.class))).thenReturn(newManifest);
     }
 }

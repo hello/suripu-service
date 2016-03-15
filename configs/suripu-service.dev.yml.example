@@ -116,6 +116,7 @@ logging:
   level: INFO
   loggers:
     com.hello.suripu.service: DEBUG
+    com.amazonaws: WARN
   appenders:
      - type: console
 #    - type: file
@@ -168,6 +169,21 @@ kinesis_logger:
   buffer_size: 100
   origin: suripu-service
 
+aws_metric_namespace: suripu-service
+dynamo_client_configuration:
+  max_connections: 100
+  connection_timeout: 100
+  connection_max_idle_millis: 60000
+  max_error_retry: 1
+  request_timeout: 200
+
+kinesis_client_configuration:
+  max_connections: 100
+  connection_timeout: 200
+  connection_max_idle_millis: 60000
+  max_error_retry: 1
+  request_timeout: 200
+
 aws_access_key_s3: AKIAJVQV7XJU23UWILSQ
 aws_access_secret_s3: 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
 
@@ -189,6 +205,7 @@ dynamodb:
     teams : teams
     calibration: calibration
     sense_state: sense_state
+    file_manifest: file_manifest
 
   endpoints:
       alarm_info : http://localhost:7777
@@ -203,3 +220,4 @@ dynamodb:
       teams : http://localhost:7777
       calibration: http://localhost:7777
       sense_state: http://localhost:7777
+      file_manifest: file_manifest
