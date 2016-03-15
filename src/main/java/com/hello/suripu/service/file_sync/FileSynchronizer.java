@@ -144,6 +144,8 @@ public class FileSynchronizer {
                 }
             });
         } catch (ExecutionException e) {
+            LOGGER.error("error=ExecutionException method=FileSynchronizer.fileDownloadFromCache file-info-id={} exception={}",
+                    fileInfo.id, e);
             return toFileDownload(fileInfo);
         }
     }

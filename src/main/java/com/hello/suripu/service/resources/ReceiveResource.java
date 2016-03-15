@@ -354,7 +354,7 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.debug("DebugSenseId device_id = {}", debugSenseId);
+        LOGGER.info("endpoint=files debug-sense-id={}", debugSenseId);
 
         final SignedMessage signedMessage = SignedMessage.parse(body);
         final FileSync.FileManifest fileManifest;
@@ -364,15 +364,16 @@ public class ReceiveResource extends BaseResource {
         } catch (IOException exception) {
             final String errorMessage = String.format("Failed parsing protobuf for deviceId = %s : %s",
                     debugSenseId, exception.getMessage());
-            LOGGER.error(errorMessage);
+            LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
+                    debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(fileManifest));
-        LOGGER.debug("Received valid protobuf {}", fileManifest.toString());
+        LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
+        LOGGER.info("endpoint=files valid-protobuf={}", fileManifest.toString());
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
-            LOGGER.error("error=empty-device-id");
+            LOGGER.error("endpoint=files error=empty-device-id");
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -382,27 +383,27 @@ public class ReceiveResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
 
         if (!senseId.equals(debugSenseId)) {
-            LOGGER.error("error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            LOGGER.error("endpoint=files error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
         final Optional<byte[]> optionalKeyBytes = getKey(senseId, groups, ipAddress);
 
         if (!optionalKeyBytes.isPresent()) {
-            LOGGER.error("error=key-store-failure sense_id={}", senseId);
+            LOGGER.error("endpoint=files error=key-store-failure sense_id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("{} sense_id={}", error.get().message, senseId);
+            LOGGER.error("endpoint=files signed-message-error={} sense_id={}", error.get().message, senseId);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
         // END refactoring TODO
 
         if (!fileManifest.hasFirmwareVersion()) {
-            LOGGER.error("error=no-firmware-version sense-id={}", senseId);
+            LOGGER.error("endpoint=files error=no-firmware-version sense-id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
         }
 
@@ -415,7 +416,7 @@ public class ReceiveResource extends BaseResource {
         // TODO this could most likely be refactored as well
         final Optional<byte[]> signedResponse = SignedMessage.sign(withQueryDelay.toByteArray(), optionalKeyBytes.get());
         if (!signedResponse.isPresent()) {
-            LOGGER.error("Failed signing message");
+            LOGGER.error("endpoint=files error=failed-signing-message sense-id={}", senseId);
             return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
         }
 
