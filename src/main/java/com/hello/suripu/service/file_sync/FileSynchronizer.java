@@ -9,6 +9,8 @@ import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.core.db.FileInfoDAO;
 import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.models.FileInfo;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,8 +97,7 @@ public class FileSynchronizer {
      * @throws URISyntaxException
      */
     private FileSync.FileManifest.FileDownload toFileDownload(final FileInfo fileInfo)
-            throws URISyntaxException
-    {
+            throws URISyntaxException, DecoderException {
         final URI uri = new URI(fileInfo.uri); // s3://mybucket/my/key.ext
         final String s3Bucket = uri.getHost(); // mybucket
         final String s3Key = uri.getPath();    // my/key.ext
@@ -120,7 +121,7 @@ public class FileSynchronizer {
         final String fileName = fileInfo.path.substring(sep+1); // just the name/extension
         final String filePath = fileInfo.path.substring(pathStart, sep); // just the file path, not including leading or trailing slashes
 
-        final ByteString sha = ByteString.copyFromUtf8(fileInfo.sha);
+        final ByteString sha = ByteString.copyFrom(Hex.decodeHex(fileInfo.sha.toCharArray()));
 
         return FileSync.FileManifest.FileDownload.newBuilder()
                 .setHost(host)
@@ -135,11 +136,13 @@ public class FileSynchronizer {
      * Get the FileDownload from cache, or generate it.
      * @throws URISyntaxException
      */
-    private FileSync.FileManifest.FileDownload fileDownloadFromCache(final FileInfo fileInfo) throws URISyntaxException {
+    private FileSync.FileManifest.FileDownload fileDownloadFromCache(final FileInfo fileInfo)
+            throws URISyntaxException, DecoderException
+    {
         try {
             return fileDownloadCache.get(fileInfo.id, new Callable<FileSync.FileManifest.FileDownload>() {
                 @Override
-                public FileSync.FileManifest.FileDownload call() throws URISyntaxException {
+                public FileSync.FileManifest.FileDownload call() throws URISyntaxException, DecoderException {
                     return toFileDownload(fileInfo);
                 }
             });
@@ -159,6 +162,8 @@ public class FileSynchronizer {
                 downloads.add(fileDownloadFromCache(fileInfo));
             } catch (URISyntaxException e) {
                 LOGGER.error("error=URISyntaxException uri={}", fileInfo.uri);
+            } catch (DecoderException e) {
+                LOGGER.error("error=DecoderException file-info-id={} sha={} uri={}", fileInfo.id, fileInfo.sha, fileInfo.uri);
             }
         }
 
