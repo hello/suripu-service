@@ -2,8 +2,10 @@ package com.hello.suripu.service.file_sync;
 
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
+import com.google.common.base.Joiner;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.core.db.FileInfoDAO;
@@ -89,7 +91,9 @@ public class FileSynchronizer {
     public FileSync.FileManifest synchronizeFileManifest(final String senseId, final FileSync.FileManifest fileManifest) {
         logErrors(fileManifest);
         fileManifestDAO.updateManifest(senseId, fileManifest);
-        return getResponseManifest(senseId, fileManifest);
+        final FileSync.FileManifest responseManifest = getResponseManifest(senseId, fileManifest);
+        logManifestChanges(senseId, responseManifest);
+        return responseManifest;
     }
 
     /**
@@ -180,6 +184,40 @@ public class FileSynchronizer {
         for (final FileSync.FileManifest.FileOperationError error : manifest.getErrorInfoList()) {
             LOGGER.error(FileManifestUtil.getErrorMessage(error));
         }
+    }
+
+    private void logManifestChanges(final String senseId, final FileSync.FileManifest manifest) {
+        // Where update_file is false
+        final List<String> unchangedPaths = Lists.newArrayList();
+
+        // Where update_file is true but delete_file is false
+        final List<String> updatedPaths = Lists.newArrayList();
+
+        // Where update_file is true and delete_file is true
+        final List<String> deletedPaths = Lists.newArrayList();
+
+        for (final FileSync.FileManifest.File file : manifest.getFileInfoList()) {
+
+            if (!file.hasDownloadInfo()) {
+                continue;
+            }
+
+            final String path = FileManifestUtil.fullPath(file.getDownloadInfo());
+
+            if (file.hasUpdateFile() && file.getUpdateFile()) {
+                if (file.hasDeleteFile() && file.getDeleteFile()) {
+                    deletedPaths.add(path);
+                } else {
+                    updatedPaths.add(path);
+                }
+            } else {
+                unchangedPaths.add(path);
+            }
+        }
+
+        final Joiner joiner = Joiner.on(":");
+        LOGGER.info("sense-id={} unchanged-paths={} updated-paths={} deleted-paths={}",
+                senseId, joiner.join(unchangedPaths), joiner.join(updatedPaths), joiner.join(deletedPaths));
     }
 
 }
