@@ -273,6 +273,16 @@ public class ReceiveResource extends BaseResource {
     }
 
 
+    private Boolean isValidSenseState(final State.SenseState senseState) {
+        if (senseState.hasAudioState()) {
+            if (senseState.getAudioState().hasFilePath() && senseState.getAudioState().getFilePath().isEmpty()) {
+                LOGGER.error("class=SenseState sense-id={} error=empty-audio-state-file-path", senseState.getSenseId());
+                return false;
+            }
+        }
+        return true;
+    }
+
     @POST
     @Path("/sense/state")
     @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
@@ -327,6 +337,10 @@ public class ReceiveResource extends BaseResource {
         if (error.isPresent()) {
             LOGGER.error("{} sense_id={}", error.get().message, senseId);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+
+        if (!isValidSenseState(senseState)) {
+            return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
         // Update state in Dynamo
