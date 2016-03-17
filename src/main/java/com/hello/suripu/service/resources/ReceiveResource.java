@@ -297,21 +297,21 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.debug("DebugSenseId device_id = {}", debugSenseId);
+        LOGGER.debug("debug-sense-id={}", debugSenseId);
 
         try {
             senseState = State.SenseState.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            final String errorMessage = String.format("Failed parsing SenseState protobuf for deviceId = %s : %s", debugSenseId, exception.getMessage());
-            LOGGER.error(errorMessage);
+            LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
+                    debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(senseState));
-        LOGGER.debug("Received valid SenseState {}", senseState.toString());
+        LOGGER.info("endpoint=sense-state protobuf-message={}", TextFormat.shortDebugString(senseState));
+        LOGGER.info("endpoint=sense-state valid-protobuf={}", senseState.toString());
 
         if (!senseState.hasSenseId() || senseState.getSenseId().isEmpty()) {
-            LOGGER.error("error=empty-device-id");
+            LOGGER.error("endpoint=sense-state error=empty-device-id debug-sense-id={}", debugSenseId);
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -321,21 +321,21 @@ public class ReceiveResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
 
         if (!senseId.equals(debugSenseId)) {
-            LOGGER.error("error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            LOGGER.error("endpoint=sense-state error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
         final Optional<byte[]> optionalKeyBytes = getKey(senseId, groups, ipAddress);
 
         if (!optionalKeyBytes.isPresent()) {
-            LOGGER.error("error=key-store-failure sense_id={}", senseId);
+            LOGGER.error("endpoint=sense-state error=key-store-failure sense_id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("{} sense_id={}", error.get().message, senseId);
+            LOGGER.error("endpoint=sense-state error={} sense_id={}", error.get().message, senseId);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
@@ -348,7 +348,7 @@ public class ReceiveResource extends BaseResource {
 
         final Optional<byte[]> signedResponse = SignedMessage.sign(senseState.toByteArray(), optionalKeyBytes.get());
         if (!signedResponse.isPresent()) {
-            LOGGER.error("Failed signing message");
+            LOGGER.error("endpoint=sense-state error=failed-signing-message sense-id={}", senseId);
             return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
         }
 
@@ -376,15 +376,12 @@ public class ReceiveResource extends BaseResource {
         try {
             fileManifest = FileSync.FileManifest.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            final String errorMessage = String.format("Failed parsing protobuf for deviceId = %s : %s",
-                    debugSenseId, exception.getMessage());
             LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
                     debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
         LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
-        LOGGER.info("endpoint=files valid-protobuf={}", fileManifest.toString());
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
             LOGGER.error("endpoint=files error=empty-device-id");
