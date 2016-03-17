@@ -382,7 +382,6 @@ public class ReceiveResource extends BaseResource {
         }
 
         LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
-        LOGGER.info("endpoint=files valid-protobuf={}", fileManifest.toString());
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
             LOGGER.error("endpoint=files error=empty-device-id");
