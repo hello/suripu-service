@@ -13,7 +13,7 @@ import java.util.Map;
  */
 public class FileManifestUtil {
 
-    private static String fullPath(final FileSync.FileManifest.FileDownload fileDownload) {
+    public static String fullPath(final FileSync.FileManifest.FileDownload fileDownload) {
         return fileDownload.getSdCardPath() + "/" + fileDownload.getSdCardFilename();
     }
 

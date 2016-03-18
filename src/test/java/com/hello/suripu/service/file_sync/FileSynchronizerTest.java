@@ -131,9 +131,9 @@ public class FileSynchronizerTest {
 
         Mockito.when(fileManifestDAO.updateManifest(Mockito.anyString(), Mockito.eq(manifest))).thenReturn(Optional.of(manifest));
         Mockito.when(fileInfoDAO.getAll(firmwareVersion, senseId)).thenReturn(fileInfoList);
-        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("/noLeadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
+        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("noLeadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/noLeadingSlash"));
-        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("/leadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
+        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("leadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/leadingSlash"));
 
         final FileSync.FileManifest responseManifest = fileSynchronizer.synchronizeFileManifest(senseId, manifest);
