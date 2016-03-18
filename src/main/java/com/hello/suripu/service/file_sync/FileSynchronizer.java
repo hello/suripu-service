@@ -104,7 +104,7 @@ public class FileSynchronizer {
             throws URISyntaxException, DecoderException {
         final URI uri = new URI(fileInfo.uri); // s3://mybucket/my/key.ext
         final String s3Bucket = uri.getHost(); // mybucket
-        final String s3Key = uri.getPath();    // my/key.ext
+        final String s3Key = uri.getPath().startsWith("/") ? uri.getPath().substring(1) : uri.getPath();    // my/key.ext
 
         final Date expiration = new java.util.Date();
         long msec = expiration.getTime();
