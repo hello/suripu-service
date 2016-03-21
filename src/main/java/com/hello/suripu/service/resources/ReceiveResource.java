@@ -424,6 +424,8 @@ public class ReceiveResource extends BaseResource {
         // TODO adjust query delay using feature flipper
         final FileSync.FileManifest withQueryDelay = FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build();
 
+        LOGGER.debug("endpoint=files response-protobuf={}", TextFormat.shortDebugString(withQueryDelay));
+
         // TODO this could most likely be refactored as well
         final Optional<byte[]> signedResponse = SignedMessage.sign(withQueryDelay.toByteArray(), optionalKeyBytes.get());
         if (!signedResponse.isPresent()) {
