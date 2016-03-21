@@ -32,7 +32,7 @@ public class FileManifestUtil {
     }
 
     private static Boolean equalFileDownloads(final FileSync.FileManifest.FileDownload a, final FileSync.FileManifest.FileDownload b) {
-        LOGGER.debug("method=equalFileDonwnloads a-path={} b-path={} a-filename={} b-filename={} a-sha={} b-sha={}",
+        LOGGER.debug("method=equalFileDownloads a-path={} b-path={} a-filename={} b-filename={} a-sha={} b-sha={}",
                 a.getSdCardPath(), b.getSdCardPath(),
                 a.getSdCardFilename(), b.getSdCardFilename(),
                 a.getSha1().toStringUtf8(), b.getSha1().toStringUtf8());
