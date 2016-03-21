@@ -123,7 +123,7 @@ public class FileManifestUtilTest {
 
         final FileSync.FileManifest responseManifest = FileManifestUtil.getResponseManifest(uploadedManifest, expectedDownloads);
         assertThat(responseManifest.getSenseId(), is(senseId));
-        assertThat(responseManifest.getFileInfoCount(), is(7));
+        assertThat(responseManifest.getFileInfoCount(), is(5));
         assertThat(responseManifest.getFileInfoList(), containsInAnyOrder(
                 FileSync.FileManifest.File.newBuilder()
                         .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
@@ -136,17 +136,17 @@ public class FileManifestUtilTest {
                     .setUpdateFile(false)
                     .setDeleteFile(false)
                     .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardFilename(fileShouldDelete)
-                                .setSdCardPath(defaultDir)
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(true)
-                        .build(),
+//                FileSync.FileManifest.File.newBuilder()
+//                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
+//                                .setSdCardFilename(fileShouldDelete)
+//                                .setSdCardPath(defaultDir)
+//                                .setSha1(sha)
+//                                .setUrl(url)
+//                                .setHost(host)
+//                                .build())
+//                        .setUpdateFile(true)
+//                        .setDeleteFile(true)
+//                        .build(),
                 FileSync.FileManifest.File.newBuilder()
                         .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
                                 .setSdCardFilename(fileWrongDirectory)
@@ -158,17 +158,17 @@ public class FileManifestUtilTest {
                         .setUpdateFile(true)
                         .setDeleteFile(false)
                         .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardFilename(fileWrongDirectory)
-                                .setSdCardPath("some_other_dir")
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(true)
-                        .build(),
+//                FileSync.FileManifest.File.newBuilder()
+//                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
+//                                .setSdCardFilename(fileWrongDirectory)
+//                                .setSdCardPath("some_other_dir")
+//                                .setSha1(sha)
+//                                .setUrl(url)
+//                                .setHost(host)
+//                                .build())
+//                        .setUpdateFile(true)
+//                        .setDeleteFile(true)
+//                        .build(),
                 FileSync.FileManifest.File.newBuilder()
                         .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
                                 .setSdCardFilename(fileRightNameWrongSha)

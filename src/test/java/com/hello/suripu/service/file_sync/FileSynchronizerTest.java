@@ -47,6 +47,8 @@ public class FileSynchronizerTest {
     }
 
 
+    // TODO uncomment once file deletion is enabled
+    /*
     @Test
     public void testSynchronizeFileManifestDeleteAllDownloads() throws Exception {
         final Integer firmwareVersion = 5;
@@ -91,6 +93,7 @@ public class FileSynchronizerTest {
                 .setDeleteFile(true)
                 .build()));
     }
+    */
 
     @Test
     public void testSynchronizeFileManifest() throws Exception  {

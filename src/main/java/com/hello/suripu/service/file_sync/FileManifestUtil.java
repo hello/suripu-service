@@ -61,6 +61,8 @@ public class FileManifestUtil {
                     .build());
         }
 
+        // TODO delete files once we have a better mechanism for determining that a file should be deleted
+        /*
         // another loop for deletes
         for (final Map.Entry<String, FileSync.FileManifest.FileDownload> reportedEntry : senseReportedMap.entrySet()) {
             if (!expectedMap.containsKey(reportedEntry.getKey())) {
@@ -72,6 +74,7 @@ public class FileManifestUtil {
                         .build());
             }
         }
+        */
 
         return files;
     }
