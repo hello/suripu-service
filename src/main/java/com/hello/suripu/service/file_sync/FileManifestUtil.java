@@ -61,20 +61,7 @@ public class FileManifestUtil {
                     .build());
         }
 
-        // TODO delete files once we have a better mechanism for determining that a file should be deleted
-        /*
-        // another loop for deletes
-        for (final Map.Entry<String, FileSync.FileManifest.FileDownload> reportedEntry : senseReportedMap.entrySet()) {
-            if (!expectedMap.containsKey(reportedEntry.getKey())) {
-                // Not expected, so Sense should delete it.
-                files.add(FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(reportedEntry.getValue())
-                        .setUpdateFile(true)
-                        .setDeleteFile(true)
-                        .build());
-            }
-        }
-        */
+        // TODO delete files once we have a good mechanism for determining that a file should be deleted
 
         return files;
     }

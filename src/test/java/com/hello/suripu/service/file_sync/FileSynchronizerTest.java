@@ -20,7 +20,6 @@ import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
@@ -45,55 +44,6 @@ public class FileSynchronizerTest {
                 fileInfoDAO, fileManifestDAO, s3Signer,
                 FILE_DOWNLOAD_CACHE_EXPIRATION_MINUTES, PRESIGNED_URL_EXPIRATION_MINUTES);
     }
-
-
-    // TODO uncomment once file deletion is enabled
-    /*
-    @Test
-    public void testSynchronizeFileManifestDeleteAllDownloads() throws Exception {
-        final Integer firmwareVersion = 5;
-        final String senseId = "sense";
-
-        final String fileName = "file";
-        final String path = "path";
-        final String url = "url.xml?query";
-        final String host = "host";
-        final ByteString sha = ByteString.copyFromUtf8("sha");
-        final FileSync.FileManifest manifest = FileSync.FileManifest.newBuilder()
-                .addFileInfo(FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardPath(path)
-                                .setSdCardFilename(fileName)
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .build())
-                .setSenseId(senseId)
-                .setFirmwareVersion(firmwareVersion)
-                .build();
-        final List<FileInfo> fileInfoList = ImmutableList.of();
-
-        Mockito.when(fileManifestDAO.updateManifest(Mockito.anyString(), Mockito.eq(manifest))).thenReturn(Optional.of(manifest));
-        Mockito.when(fileInfoDAO.getAll(firmwareVersion, senseId)).thenReturn(fileInfoList);
-        Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.anyString(), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
-                .thenReturn(new URL("http", host, 80, url));
-
-        final FileSync.FileManifest responseManifest = fileSynchronizer.synchronizeFileManifest(senseId, manifest);
-        assertThat(responseManifest.getFileInfoCount(), is(1));
-        assertThat(responseManifest.getFileInfoList(), contains(FileSync.FileManifest.File.newBuilder()
-                .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                        .setSdCardPath(path)
-                        .setSdCardFilename(fileName)
-                        .setSha1(sha)
-                        .setUrl(url)
-                        .setHost(host)
-                        .build())
-                .setUpdateFile(true)
-                .setDeleteFile(true)
-                .build()));
-    }
-    */
 
     @Test
     public void testSynchronizeFileManifest() throws Exception  {
