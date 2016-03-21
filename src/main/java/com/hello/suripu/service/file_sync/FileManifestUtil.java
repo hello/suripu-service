@@ -3,6 +3,8 @@ package com.hello.suripu.service.file_sync;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.hello.suripu.api.input.FileSync;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +14,8 @@ import java.util.Map;
  * Created by jakepiccolo on 3/14/16.
  */
 public class FileManifestUtil {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FileManifestUtil.class);
 
     public static String fullPath(final FileSync.FileManifest.FileDownload fileDownload) {
         return fileDownload.getSdCardPath() + "/" + fileDownload.getSdCardFilename();
@@ -28,6 +32,10 @@ public class FileManifestUtil {
     }
 
     private static Boolean equalFileDownloads(final FileSync.FileManifest.FileDownload a, final FileSync.FileManifest.FileDownload b) {
+        LOGGER.debug("method=equalFileDownloads a-path={} b-path={} a-filename={} b-filename={} a-sha={} b-sha={}",
+                a.getSdCardPath(), b.getSdCardPath(),
+                a.getSdCardFilename(), b.getSdCardFilename(),
+                a.getSha1().toStringUtf8(), b.getSha1().toStringUtf8());
         return a.getSdCardPath().equals(b.getSdCardPath()) &&
                 a.getSdCardFilename().equals(b.getSdCardFilename()) &&
                 a.getSha1().equals(b.getSha1());
