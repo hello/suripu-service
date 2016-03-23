@@ -20,7 +20,6 @@ import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
  * Created by jakepiccolo on 3/14/16.
@@ -52,7 +51,7 @@ public class FileSynchronizerTest {
         final String leadingSlashSha = "b2";
         final String noLeadingSlashSha = "b3";
 
-        final FileInfo noLeadingSlash = FileInfo.newBuilder()
+        final FileInfo noLeadingSlashFileInfo = FileInfo.newBuilder()
                 .withFileType(FileInfo.FileType.SLEEP_SOUND)
                 .withId(1L)
                 .withIsPublic(true)
@@ -63,7 +62,15 @@ public class FileSynchronizerTest {
                 .withUri("http://localhost/noLeadingSlash")
                 .withFirmwareVersion(1)
                 .build();
-        final FileInfo leadingSlash = FileInfo.newBuilder()
+        final FileSync.FileManifest.FileDownload noLeadingSlashFileDownload = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardPath("path")
+                .setSdCardFilename("noLeadingSlash")
+                .setSha1(ByteString.copyFrom(Hex.decodeHex(noLeadingSlashFileInfo.sha.toCharArray())))
+                .setUrl("/noLeadingSlash")
+                .setHost("localhost")
+                .build();
+
+        final FileInfo leadingSlashFileInfo = FileInfo.newBuilder()
                 .withFileType(FileInfo.FileType.SLEEP_SOUND)
                 .withId(1L)
                 .withIsPublic(true)
@@ -74,47 +81,51 @@ public class FileSynchronizerTest {
                 .withUri("http://localhost/leadingSlash")
                 .withFirmwareVersion(1)
                 .build();
+        final FileSync.FileManifest.FileDownload leadingSlashFileDownload = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardPath("path/to")
+                .setSdCardFilename("leadingSlash")
+                .setSha1(ByteString.copyFrom(Hex.decodeHex(leadingSlashFileInfo.sha.toCharArray())))
+                .setUrl("/leadingSlash")
+                .setHost("localhost")
+                .build();
 
-        final List<FileInfo> fileInfoList = ImmutableList.of(noLeadingSlash, leadingSlash);
+        final List<FileInfo> fileInfoList = ImmutableList.of(noLeadingSlashFileInfo, leadingSlashFileInfo);
 
-        final FileSync.FileManifest manifest = FileSync.FileManifest.newBuilder()
+        final FileSync.FileManifest initialManifest = FileSync.FileManifest.newBuilder()
                 .setSenseId(senseId)
                 .setFirmwareVersion(firmwareVersion)
                 .build();
 
-        Mockito.when(fileManifestDAO.updateManifest(Mockito.anyString(), Mockito.eq(manifest))).thenReturn(Optional.of(manifest));
-        Mockito.when(fileInfoDAO.getAll(firmwareVersion, senseId)).thenReturn(fileInfoList);
+        Mockito.when(fileManifestDAO.updateManifest(Mockito.eq(senseId), Mockito.eq(initialManifest))).thenReturn(Optional.<FileSync.FileManifest>absent());
+        Mockito.when(fileInfoDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoList);
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("noLeadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/noLeadingSlash"));
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("leadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/leadingSlash"));
 
-        final FileSync.FileManifest responseManifest = fileSynchronizer.synchronizeFileManifest(senseId, manifest);
-        assertThat(responseManifest.getFileInfoCount(), is(2));
+        final FileSync.FileManifest firstResponseManifest = fileSynchronizer.synchronizeFileManifest(senseId, initialManifest);
+        assertThat(firstResponseManifest.getFileInfoCount(), is(1));
+        assertThat(firstResponseManifest.getSenseId(), is(senseId));
+        assertThat(firstResponseManifest.getFileInfo(0).getDeleteFile(), is(false));
+        assertThat(firstResponseManifest.getFileInfo(0).getUpdateFile(), is(true));
 
-        assertThat(responseManifest.getFileInfoList(), containsInAnyOrder(
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardPath("path")
-                                .setSdCardFilename("noLeadingSlash")
-                                .setSha1(ByteString.copyFrom(Hex.decodeHex(noLeadingSlash.sha.toCharArray())))
-                                .setUrl("/noLeadingSlash")
-                                .setHost("localhost")
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(false)
-                        .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardPath("path/to")
-                                .setSdCardFilename("leadingSlash")
-                                .setSha1(ByteString.copyFrom(Hex.decodeHex(leadingSlash.sha.toCharArray())))
-                                .setUrl("/leadingSlash")
-                                .setHost("localhost")
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(false)
-                        .build()
-        ));
+        // Now pass in the response manifest that we got and ensure that we get the _other_ file in the next response.
+        Mockito.when(fileManifestDAO.updateManifest(Mockito.eq(senseId), Mockito.eq(firstResponseManifest))).thenReturn(Optional.of(initialManifest));
+        final FileSync.FileManifest secondResponseManifest = fileSynchronizer.synchronizeFileManifest(senseId, firstResponseManifest);
+        assertThat(secondResponseManifest.getFileInfoCount(), is(1));
+        assertThat(secondResponseManifest.getSenseId(), is(senseId));
+        assertThat(secondResponseManifest.getFileInfo(0).getDeleteFile(), is(false));
+        assertThat(secondResponseManifest.getFileInfo(0).getUpdateFile(), is(true));
+
+        if (firstResponseManifest.getFileInfo(0).getDownloadInfo().getSdCardFilename().equals("leadingSlash")) {
+            // Then the first response has the leading slash file, the second response doesn't.
+            assertThat(firstResponseManifest.getFileInfo(0).getDownloadInfo(), is(leadingSlashFileDownload));
+            assertThat(secondResponseManifest.getFileInfo(0).getDownloadInfo(), is(noLeadingSlashFileDownload));
+        } else {
+            // First response has the file without the leading slash, second has the leading slash.
+            assertThat(firstResponseManifest.getFileInfo(0).getDownloadInfo(), is(noLeadingSlashFileDownload));
+            assertThat(secondResponseManifest.getFileInfo(0).getDownloadInfo(), is(leadingSlashFileDownload));
+        }
+
     }
 }
