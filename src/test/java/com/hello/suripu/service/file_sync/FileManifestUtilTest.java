@@ -5,10 +5,8 @@ import com.google.protobuf.ByteString;
 import com.hello.suripu.api.input.FileSync;
 import org.junit.Test;
 
-import java.util.List;
-
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 
@@ -83,103 +81,92 @@ public class FileManifestUtilTest {
                 .setSenseId(senseId)
                 .build();
 
-        final List<FileSync.FileManifest.FileDownload> expectedDownloads = ImmutableList.of(
-                FileSync.FileManifest.FileDownload.newBuilder()
-                        .setSdCardFilename(fileStaysTheSame)
-                        .setSdCardPath(defaultDir)
-                        .setHost(host)
-                        .setUrl(url)
-                        .setSha1(sha)
-                        .build(),
-                FileSync.FileManifest.FileDownload.newBuilder()
-                        .setSdCardFilename(fileWrongDirectory)
-                        .setSdCardPath(defaultDir)
-                        .setHost(host)
-                        .setUrl(url)
-                        .setSha1(sha)
-                        .build(),
-                FileSync.FileManifest.FileDownload.newBuilder()
-                        .setSdCardFilename(fileRightNameWrongSha)
-                        .setSdCardPath(defaultDir)
-                        .setHost(host)
-                        .setUrl(url)
-                        .setSha1(sha)
-                        .build(),
-                FileSync.FileManifest.FileDownload.newBuilder()
-                        .setSdCardFilename(fileWrongHostRightName)
-                        .setSdCardPath(defaultDir)
-                        .setHost(host)
-                        .setUrl(url)
-                        .setSha1(sha)
-                        .build(),
-                FileSync.FileManifest.FileDownload.newBuilder()
+        final FileSync.FileManifest.FileDownload staysTheSame = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename(fileStaysTheSame)
+                .setSdCardPath(defaultDir)
+                .setHost(host)
+                .setUrl(url)
+                .setSha1(sha)
+                .build();
+        final FileSync.FileManifest.FileDownload wrongDirectory = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename(fileWrongDirectory)
+                .setSdCardPath(defaultDir)
+                .setHost(host)
+                .setUrl(url)
+                .setSha1(sha)
+                .build();
+        final FileSync.FileManifest.FileDownload rightNameWrongSha = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename(fileRightNameWrongSha)
+                .setSdCardPath(defaultDir)
+                .setHost(host)
+                .setUrl(url)
+                .setSha1(sha)
+                .build();
+        final FileSync.FileManifest.FileDownload wrongHostRightName = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename(fileWrongHostRightName)
+                .setSdCardPath(defaultDir)
+                .setHost(host)
+                .setUrl(url)
+                .setSha1(sha)
+                .build();
+        final FileSync.FileManifest.FileDownload shouldBeAdded = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename(fileShouldBeAdded)
+                .setSdCardPath(defaultDir)
+                .setHost(host)
+                .setUrl(url)
+                .setSha1(sha)
+                .build();
+
+        final FileSync.FileManifest withAddedFile = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(staysTheSame, shouldBeAdded));
+        assertThat(withAddedFile.getSenseId(), is(senseId));
+        assertThat(withAddedFile.getFileInfoCount(), is(1));
+        assertThat(withAddedFile.getFileInfoList(), contains(FileSync.FileManifest.File.newBuilder()
+                .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
                         .setSdCardFilename(fileShouldBeAdded)
                         .setSdCardPath(defaultDir)
-                        .setHost(host)
-                        .setUrl(url)
                         .setSha1(sha)
-                        .build()
-        );
+                        .setUrl(url)
+                        .setHost(host)
+                        .build())
+                .setUpdateFile(true)
+                .setDeleteFile(false)
+                .build()));
 
-        final FileSync.FileManifest responseManifest = FileManifestUtil.getResponseManifest(uploadedManifest, expectedDownloads);
-        assertThat(responseManifest.getSenseId(), is(senseId));
-        assertThat(responseManifest.getFileInfoCount(), is(5));
-        assertThat(responseManifest.getFileInfoList(), containsInAnyOrder(
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                            .setSdCardFilename(fileStaysTheSame)
-                            .setSdCardPath(defaultDir)
-                            .setSha1(sha)
-                            .setUrl(url)
-                            .setHost(host)
-                            .build())
-                    .setUpdateFile(false)
-                    .setDeleteFile(false)
-                    .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardFilename(fileWrongDirectory)
-                                .setSdCardPath(defaultDir)
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(false)
-                        .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardFilename(fileRightNameWrongSha)
-                                .setSdCardPath(defaultDir)
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(false)
-                        .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardFilename(fileWrongHostRightName)
-                                .setSdCardPath(defaultDir)
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .setUpdateFile(false)
-                        .setDeleteFile(false)
-                        .build(),
-                FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
-                                .setSdCardFilename(fileShouldBeAdded)
-                                .setSdCardPath(defaultDir)
-                                .setSha1(sha)
-                                .setUrl(url)
-                                .setHost(host)
-                                .build())
-                        .setUpdateFile(true)
-                        .setDeleteFile(false)
-                        .build()));
+        final FileSync.FileManifest withWrongDir = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(staysTheSame, wrongDirectory));
+        assertThat(withWrongDir.getSenseId(), is(senseId));
+        assertThat(withWrongDir.getFileInfoCount(), is(1));
+        assertThat(withWrongDir.getFileInfoList(), contains(FileSync.FileManifest.File.newBuilder()
+                .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
+                        .setSdCardFilename(fileWrongDirectory)
+                        .setSdCardPath(defaultDir)
+                        .setSha1(sha)
+                        .setUrl(url)
+                        .setHost(host)
+                        .build())
+                .setUpdateFile(true)
+                .setDeleteFile(false)
+                .build()));
+
+        final FileSync.FileManifest withWrongSha = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(staysTheSame, rightNameWrongSha));
+        assertThat(withWrongSha.getSenseId(), is(senseId));
+        assertThat(withWrongSha.getFileInfoCount(), is(1));
+        assertThat(withWrongSha.getFileInfoList(), contains(FileSync.FileManifest.File.newBuilder()
+                .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
+                        .setSdCardFilename(fileRightNameWrongSha)
+                        .setSdCardPath(defaultDir)
+                        .setSha1(sha)
+                        .setUrl(url)
+                        .setHost(host)
+                        .build())
+                .setUpdateFile(true)
+                .setDeleteFile(false)
+                .build()));
+
+        final FileSync.FileManifest withWrongHost = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(wrongHostRightName));
+        // Wrong host is totally cool, so shouldn't be returned
+        assertThat(withWrongHost.getSenseId(), is(senseId));
+        assertThat(withWrongHost.getFileInfoCount(), is(0));
+
     }
 
     @Test

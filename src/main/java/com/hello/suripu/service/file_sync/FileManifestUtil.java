@@ -52,13 +52,20 @@ public class FileManifestUtil {
 
         // Additions/updates
         for (final Map.Entry<String, FileSync.FileManifest.FileDownload> expectedEntry : expectedMap.entrySet()) {
-            final Boolean shouldUpdate = !senseReportedMap.containsKey(expectedEntry.getKey()) ||
+            final Boolean reportedBySense = senseReportedMap.containsKey(expectedEntry.getKey());
+            final Boolean shouldUpdate = !reportedBySense ||
                     !equalFileDownloads(senseReportedMap.get(expectedEntry.getKey()), expectedEntry.getValue());
-            files.add(FileSync.FileManifest.File.newBuilder()
-                    .setDownloadInfo(expectedEntry.getValue())
-                    .setUpdateFile(shouldUpdate)
-                    .setDeleteFile(false)
-                    .build());
+
+            if (shouldUpdate) {
+                // Only add files that need updating
+                files.add(FileSync.FileManifest.File.newBuilder()
+                        .setDownloadInfo(expectedEntry.getValue())
+                        .setUpdateFile(shouldUpdate)
+                        .setDeleteFile(false)
+                        .build());
+                break; // Only return 1 file update at a time to limit the response size.
+            }
+
         }
 
         // TODO delete files once we have a good mechanism for determining that a file should be deleted
