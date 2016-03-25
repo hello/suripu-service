@@ -615,6 +615,10 @@ public class ReceiveResource extends BaseResource {
                 //Perform all OTA checks and compute the update file list (if necessary)
                 final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, userTimeZone.get(), batch, userInfoList, deviceHasOutOfSyncClock);
                 if (!fileDownloadList.isEmpty()) {
+                    if (shouldOverrideOTA(deviceName, groups)) {
+                        LOGGER.info("action=ota_override device_id={}", deviceName);
+                        fileDownloadList.clear();
+                    }
                     responseBuilder.addAllFiles(fileDownloadList);
                     responseBuilder.setResetMcu(false); //Clear the reset MCU command since in the fw it will take precedence over the OTA
                 }
@@ -648,6 +652,10 @@ public class ReceiveResource extends BaseResource {
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
                 final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, DateTimeZone.UTC, batch, userInfoList, deviceHasOutOfSyncClock);
                 if (!fileDownloadList.isEmpty()) {
+                    if (shouldOverrideOTA(deviceName, groups)) {
+                        LOGGER.info("action=ota_override device_id={}", deviceName);
+                        fileDownloadList.clear();
+                    }
                     responseBuilder.addAllFiles(fileDownloadList);
                     responseBuilder.setResetMcu(false);
                 }
@@ -675,6 +683,31 @@ public class ReceiveResource extends BaseResource {
         }
 
         return signedResponse.get();
+    }
+
+    public boolean shouldOverrideOTA(final String deviceId, final List<String> groups) {
+        if (!featureFlipper.deviceFeatureActive(FeatureFlipper.SLEEP_SOUNDS_OVERRIDE_OTA, deviceId, groups)) {
+            return false;
+        }
+
+        return isAudioPlaying(deviceId);
+    }
+
+    public boolean isAudioPlaying(final String deviceId) {
+
+        Optional<SenseStateAtTime> senseState = senseStateDynamoDB.getState(deviceId);
+        if(!senseState.isPresent()) {
+            LOGGER.error("error=no_sense_state device_id={}", deviceId);
+            return false;
+        }
+        
+        final State.SenseState state = senseState.get().state;
+        if(!state.hasAudioState()) {
+            LOGGER.error("error=no_audio_state device_id={}", deviceId);
+            return false;
+        }
+
+        return state.getAudioState().getPlayingAudio();
     }
 
     public static boolean shouldWriteRingTimeHistory(final DateTime now, final RingTime nextRingTime, final int uploadIntervalInMinutes) {
