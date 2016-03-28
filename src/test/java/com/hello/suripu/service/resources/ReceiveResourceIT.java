@@ -307,7 +307,7 @@ public class ReceiveResourceIT extends ResourceTest {
         final byte[] response = receiveResource.updateFileManifest(signProtobuf(requestManifest, KEY));
         final byte[] protobufBytes = Arrays.copyOfRange(response, 16 + 32, response.length);
         final FileSync.FileManifest responseManifest = FileSync.FileManifest.parseFrom(protobufBytes);
-        assertThat(responseManifest, is(FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build()));
+        assertThat(responseManifest, is(newManifest));
     }
 
     @Test(expected= WebApplicationException.class)
