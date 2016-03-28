@@ -421,13 +421,10 @@ public class ReceiveResource extends BaseResource {
         // Synchronize
         final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest);
 
-        // TODO adjust query delay using feature flipper
-        final FileSync.FileManifest withQueryDelay = FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build();
-
-        LOGGER.debug("endpoint=files response-protobuf={}", TextFormat.shortDebugString(withQueryDelay));
+        LOGGER.info("endpoint=files response-protobuf={}", TextFormat.shortDebugString(newManifest));
 
         // TODO this could most likely be refactored as well
-        final Optional<byte[]> signedResponse = SignedMessage.sign(withQueryDelay.toByteArray(), optionalKeyBytes.get());
+        final Optional<byte[]> signedResponse = SignedMessage.sign(newManifest.toByteArray(), optionalKeyBytes.get());
         if (!signedResponse.isPresent()) {
             LOGGER.error("endpoint=files error=failed-signing-message sense-id={}", senseId);
             return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");

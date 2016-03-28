@@ -1,5 +1,6 @@
 package com.hello.suripu.service.file_sync;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.hello.suripu.api.input.FileSync;
@@ -63,7 +64,6 @@ public class FileManifestUtil {
                         .setUpdateFile(shouldUpdate)
                         .setDeleteFile(false)
                         .build());
-                break; // Only return 1 file update at a time to limit the response size.
             }
 
         }
@@ -84,6 +84,17 @@ public class FileManifestUtil {
     }
 
     /**
+     * @return "path/1:path/2:path/3:..."
+     */
+    private static String joinPaths(final List<FileSync.FileManifest.File> files) {
+        final List<String> paths = Lists.newArrayList();
+        for (final FileSync.FileManifest.File file: files) {
+            paths.add(fullPath(file.getDownloadInfo()));
+        }
+        return Joiner.on(":").join(paths);
+    }
+
+    /**
      * @param requestManifest FileManifest uploaded by Sense.
      * @param expectedFileDownloads FileDownloads that should be present on the Sense.
      * @return The new FileManifest that sense should have based on the diff between the requestManifest and expectedFileDownloads.
@@ -95,9 +106,22 @@ public class FileManifestUtil {
 
         final List<FileSync.FileManifest.File> newFiles = newFileListFromReportedAndExpected(reportedFileDownloads, expectedFileDownloads);
 
+        final List<FileSync.FileManifest.File> filteredNewFiles;
+        final Integer queryDelay;
+        if (newFiles.size() > 1) {
+            filteredNewFiles = newFiles.subList(0, 1); // Only send a single file.
+            queryDelay = 2; // Try again soon, we've got more files for ya!
+            LOGGER.info("sense-id={} files-to-update={} updates-remaining={}",
+                    requestManifest.getSenseId(), joinPaths(filteredNewFiles), joinPaths(newFiles.subList(1, newFiles.size())));
+        } else {
+            filteredNewFiles = newFiles; // send them all
+            queryDelay = 15; // Nothing more for you here, check back in a while
+        }
+
         return FileSync.FileManifest.newBuilder()
-                .addAllFileInfo(newFiles)
+                .addAllFileInfo(filteredNewFiles)
                 .setSenseId(requestManifest.getSenseId())
+                .setQueryDelay(queryDelay)
                 .build();
     }
 
