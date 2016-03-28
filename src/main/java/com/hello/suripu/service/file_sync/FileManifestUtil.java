@@ -46,20 +46,20 @@ public class FileManifestUtil {
             final List<FileSync.FileManifest.FileDownload> expectedFileDownloads)
     {
         final Map<String, FileSync.FileManifest.FileDownload> senseReportedMap = getPathToFileDownloadMap(senseReportedFileDownloads);
-        final Map<String, FileSync.FileManifest.FileDownload> expectedMap = getPathToFileDownloadMap(expectedFileDownloads);
 
         final List<FileSync.FileManifest.File> files = Lists.newArrayList();
 
         // Additions/updates
-        for (final Map.Entry<String, FileSync.FileManifest.FileDownload> expectedEntry : expectedMap.entrySet()) {
-            final Boolean reportedBySense = senseReportedMap.containsKey(expectedEntry.getKey());
+        for (final FileSync.FileManifest.FileDownload expectedFileDownload : expectedFileDownloads) {
+            final String expectedPath = fullPath(expectedFileDownload);
+            final Boolean reportedBySense = senseReportedMap.containsKey(expectedPath);
             final Boolean shouldUpdate = !reportedBySense ||
-                    !equalFileDownloads(senseReportedMap.get(expectedEntry.getKey()), expectedEntry.getValue());
+                    !equalFileDownloads(senseReportedMap.get(expectedPath), expectedFileDownload);
 
             if (shouldUpdate) {
                 // Only add files that need updating
                 files.add(FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(expectedEntry.getValue())
+                        .setDownloadInfo(expectedFileDownload)
                         .setUpdateFile(shouldUpdate)
                         .setDeleteFile(false)
                         .build());
