@@ -613,7 +613,7 @@ public class ReceiveResource extends BaseResource {
                 final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, userTimeZone.get(), batch, userInfoList, deviceHasOutOfSyncClock);
                 if (!fileDownloadList.isEmpty()) {
                     if (shouldOverrideOTA(deviceName, groups)) {
-                        LOGGER.warn("action=ota_override sense_id={}", deviceName);
+                        LOGGER.warn("action=ota-override sense_id={}", deviceName);
                         fileDownloadList.clear();
                     }
                     responseBuilder.addAllFiles(fileDownloadList);
@@ -676,7 +676,7 @@ public class ReceiveResource extends BaseResource {
 
         final int responseLength = signedResponse.get().length;
         if (responseLength > 2048) {
-            LOGGER.warn("response_size too large ({}) for sense_id= {}", responseLength, deviceName);
+            LOGGER.warn("error=response-size-too-large size={} sense_id={}", responseLength, deviceName);
         }
 
         return signedResponse.get();
