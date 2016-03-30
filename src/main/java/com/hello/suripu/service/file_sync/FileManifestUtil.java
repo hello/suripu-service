@@ -37,8 +37,8 @@ public class FileManifestUtil {
                 a.getSdCardPath(), b.getSdCardPath(),
                 a.getSdCardFilename(), b.getSdCardFilename(),
                 a.getSha1().toStringUtf8(), b.getSha1().toStringUtf8());
-        return a.getSdCardPath().equals(b.getSdCardPath()) &&
-                a.getSdCardFilename().equals(b.getSdCardFilename()) &&
+        return a.getSdCardPath().equalsIgnoreCase(b.getSdCardPath()) &&
+                a.getSdCardFilename().equalsIgnoreCase(b.getSdCardFilename()) &&
                 a.getSha1().equals(b.getSha1());
     }
 
