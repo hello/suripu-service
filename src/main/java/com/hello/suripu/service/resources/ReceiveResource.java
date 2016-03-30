@@ -181,13 +181,12 @@ public class ReceiveResource extends BaseResource {
         final String topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
         final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
 
-        LOGGER.debug("DebugSenseId device_id = {}", debugSenseId);
+        LOGGER.debug("sense_id={}", debugSenseId);
 
         try {
             data = DataInputProtos.batched_periodic_data.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            final String errorMessage = String.format("Failed parsing protobuf for deviceId = %s : %s", debugSenseId, exception.getMessage());
-            LOGGER.error(errorMessage);
+            LOGGER.error("error=protobuf-parsing-failed sense_id={} message={}", debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
         LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(data));
@@ -197,7 +196,7 @@ public class ReceiveResource extends BaseResource {
         LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(data));
 
         if (!data.hasDeviceId() || data.getDeviceId().isEmpty()) {
-            LOGGER.error("error=empty-device-id");
+            LOGGER.error("error=empty-device-id-protobuf sense_id={}", debugSenseId);
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -209,7 +208,7 @@ public class ReceiveResource extends BaseResource {
 
 
         if (featureFlipper.deviceFeatureActive(FeatureFlipper.PRINT_RAW_PB, deviceId, groups)) {
-            LOGGER.debug("RAW_PB for device_id={} {}", deviceId, Hex.encodeHexString(body));
+            LOGGER.debug("sense_id={} raw_pb={}", deviceId, Hex.encodeHexString(body));
         }
 
         if (OTAProcessor.isPCH(ipAddress, ipGroups) && !(featureFlipper.deviceFeatureActive(FeatureFlipper.PCH_SPECIAL_OTA, deviceId, groups))) {
@@ -221,14 +220,14 @@ public class ReceiveResource extends BaseResource {
         final Optional<byte[]> optionalKeyBytes = getKey(deviceId, groups, ipAddress);
 
         if (!optionalKeyBytes.isPresent()) {
-            LOGGER.error("error=key-store-failure sense_id={}", data.getDeviceId());
+            LOGGER.error("error=key-store-failure sense_id={}", deviceId);
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("{} sense_id={}", error.get().message, deviceId);
+            LOGGER.error("error=signature-failed message={} sense_id={}", error.get().message, deviceId);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
@@ -240,7 +239,7 @@ public class ReceiveResource extends BaseResource {
         } catch (Exception ex) {
             LOGGER.error("error=merge-info-retrieve-failure sense_id={}: {}", data.getDeviceId(), ex.getMessage());
         }
-        LOGGER.debug("Found {} pairs for device_id = {}", userInfoList.size(), data.getDeviceId());
+        LOGGER.debug("accounts_paired={} sense_id={}", userInfoList.size(), data.getDeviceId());
 
         final Map<Long, DateTimeZone> accountTimezones = getUserTimeZones(userInfoList);
         final DataInputProtos.BatchPeriodicDataWorker.Builder batchPeriodicDataWorkerMessageBuilder = DataInputProtos.BatchPeriodicDataWorker.newBuilder()
@@ -276,7 +275,7 @@ public class ReceiveResource extends BaseResource {
     private Boolean isValidSenseState(final State.SenseState senseState) {
         if (senseState.hasAudioState()) {
             if (senseState.getAudioState().hasFilePath() && senseState.getAudioState().getFilePath().isEmpty()) {
-                LOGGER.error("class=SenseState sense-id={} error=empty-audio-state-file-path", senseState.getSenseId());
+                LOGGER.error("class=SenseState sense_id={} error=empty-audio-state-file-path", senseState.getSenseId());
                 return false;
             }
         }
@@ -348,7 +347,7 @@ public class ReceiveResource extends BaseResource {
 
         final Optional<byte[]> signedResponse = SignedMessage.sign(senseState.toByteArray(), optionalKeyBytes.get());
         if (!signedResponse.isPresent()) {
-            LOGGER.error("endpoint=sense-state error=failed-signing-message sense-id={}", senseId);
+            LOGGER.error("endpoint=sense-state error=failed-signing-message sense_id={}", senseId);
             return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
         }
 
@@ -368,7 +367,7 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.info("endpoint=files debug-sense-id={}", debugSenseId);
+        LOGGER.info("endpoint=files sense_id={}", debugSenseId);
 
         final SignedMessage signedMessage = SignedMessage.parse(body);
         final FileSync.FileManifest fileManifest;
@@ -376,7 +375,7 @@ public class ReceiveResource extends BaseResource {
         try {
             fileManifest = FileSync.FileManifest.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
+            LOGGER.error("error=failed-parsing-protobuf sense_id={} exception={}",
                     debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
@@ -384,7 +383,7 @@ public class ReceiveResource extends BaseResource {
         LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
-            LOGGER.error("endpoint=files error=empty-device-id");
+            LOGGER.error("endpoint=files error=manifest-empty-device-id");
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -394,7 +393,7 @@ public class ReceiveResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
 
         if (!senseId.equals(debugSenseId)) {
-            LOGGER.error("endpoint=files error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            LOGGER.error("endpoint=files error=sense-id-no-match sense_id={} proto-sense-id={}", debugSenseId, senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
@@ -414,7 +413,7 @@ public class ReceiveResource extends BaseResource {
         // END refactoring TODO
 
         if (!fileManifest.hasFirmwareVersion()) {
-            LOGGER.error("endpoint=files error=no-firmware-version sense-id={}", senseId);
+            LOGGER.error("endpoint=files error=no-firmware-version sense_id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
         }
 
@@ -530,7 +529,8 @@ public class ReceiveResource extends BaseResource {
 
                 final boolean isLatestFirmware = batch.hasFirmwareVersion() && fwVersionsToRebootIfClockOutOfSync.contains(batch.getFirmwareVersion());
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.REBOOT_CLOCK_OUT_OF_SYNC_DEVICES, deviceName, groups) && isLatestFirmware) {
-                    LOGGER.warn("Reset MCU set for sense {}", deviceName);
+                    LOGGER.warn("Reset MCU set for sense {}", deviceName); // keeping this for papertrail alerts
+                    LOGGER.warn("action=reset-mcu sense_id={}", deviceName);
                     responseBuilder.setResetMcu(true);
                 } else {
                     continue;
@@ -613,7 +613,7 @@ public class ReceiveResource extends BaseResource {
                 final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, userTimeZone.get(), batch, userInfoList, deviceHasOutOfSyncClock);
                 if (!fileDownloadList.isEmpty()) {
                     if (shouldOverrideOTA(deviceName, groups)) {
-                        LOGGER.info("action=ota_override device_id={}", deviceName);
+                        LOGGER.warn("action=ota_override sense_id={}", deviceName);
                         fileDownloadList.clear();
                     }
                     responseBuilder.addAllFiles(fileDownloadList);
@@ -645,12 +645,12 @@ public class ReceiveResource extends BaseResource {
             responseBuilder.setAudioControl(audioControl);
             setPillColors(userInfoList, responseBuilder);
         } else {
-            LOGGER.error("NO TIMEZONE IS A BIG DEAL. Defaulting to UTC for OTA purposes.");
+            LOGGER.error("error=no-timezone message=default-utc-for-ota sense_id={}", deviceName);
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
                 final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, DateTimeZone.UTC, batch, userInfoList, deviceHasOutOfSyncClock);
                 if (!fileDownloadList.isEmpty()) {
                     if (shouldOverrideOTA(deviceName, groups)) {
-                        LOGGER.info("action=ota_override device_id={}", deviceName);
+                        LOGGER.info("action=ota_override sense_id={}", deviceName);
                         fileDownloadList.clear();
                     }
                     responseBuilder.addAllFiles(fileDownloadList);
@@ -676,7 +676,7 @@ public class ReceiveResource extends BaseResource {
 
         final int responseLength = signedResponse.get().length;
         if (responseLength > 2048) {
-            LOGGER.warn("response_size too large ({}) for device_id= {}", responseLength, deviceName);
+            LOGGER.warn("response_size too large ({}) for sense_id= {}", responseLength, deviceName);
         }
 
         return signedResponse.get();
@@ -694,13 +694,13 @@ public class ReceiveResource extends BaseResource {
 
         Optional<SenseStateAtTime> senseState = senseStateDynamoDB.getState(deviceId);
         if(!senseState.isPresent()) {
-            LOGGER.error("error=no_sense_state device_id={}", deviceId);
+            LOGGER.error("error=no_sense_state sense_id={}", deviceId);
             return false;
         }
         
         final State.SenseState state = senseState.get().state;
         if(!state.hasAudioState()) {
-            LOGGER.error("error=no_audio_state device_id={}", deviceId);
+            LOGGER.error("error=no_audio_state sense_id={}", deviceId);
             return false;
         }
 
