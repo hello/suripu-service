@@ -187,6 +187,13 @@ public class FileManifestUtilTest {
                 .setDeleteFile(false)
                 .build()));
         assertThat(withAddedAndWrongDir.getQueryDelay(), is(2));
+
+        // Don't send any files if download pending
+        final FileSync.FileManifest withDownloadPending = FileManifestUtil.getResponseManifest(
+                FileSync.FileManifest.newBuilder(uploadedManifest).setFileStatus(FileSync.FileManifest.FileStatusType.DOWNLOAD_PENDING).build(),
+                ImmutableList.of(staysTheSame, shouldBeAdded, wrongDirectory));
+        assertThat(withDownloadPending.getQueryDelay(), is(2));
+        assertThat(withDownloadPending.getFileInfoCount(), is(0));
     }
 
     @Test
