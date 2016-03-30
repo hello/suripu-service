@@ -108,6 +108,7 @@ public class FileManifestUtil {
 
         final List<FileSync.FileManifest.File> filteredNewFiles;
         final Integer queryDelay;
+
         if (newFiles.size() > 1) {
             filteredNewFiles = newFiles.subList(0, 1); // Only send a single file.
             queryDelay = 2; // Try again soon, we've got more files for ya!
@@ -118,8 +119,16 @@ public class FileManifestUtil {
             queryDelay = 15; // Nothing more for you here, check back in a while
         }
 
+        final List<FileSync.FileManifest.File> filesToSend;
+        if (requestManifest.hasFileStatus() && requestManifest.getFileStatus().equals(FileSync.FileManifest.FileStatusType.DOWNLOAD_PENDING)) {
+            // Don't send any files if download is pending to avoid re-downloading the same files
+            filesToSend = Lists.newArrayList();
+        } else {
+            filesToSend = filteredNewFiles;
+        }
+
         return FileSync.FileManifest.newBuilder()
-                .addAllFileInfo(filteredNewFiles)
+                .addAllFileInfo(filesToSend)
                 .setSenseId(requestManifest.getSenseId())
                 .setQueryDelay(queryDelay)
                 .build();
