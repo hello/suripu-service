@@ -645,7 +645,7 @@ public class ReceiveResource extends BaseResource {
             responseBuilder.setAudioControl(audioControl);
             setPillColors(userInfoList, responseBuilder);
         } else {
-            LOGGER.error("error=no-timezone message=default-utc-for-ota sense_id={}", deviceName);
+            LOGGER.error("error=no-timezone message=default-utc-for-ota sense_id={} ip_address={}", deviceName, ipAddress);
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
                 final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, DateTimeZone.UTC, batch, userInfoList, deviceHasOutOfSyncClock);
                 if (!fileDownloadList.isEmpty()) {
