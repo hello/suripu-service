@@ -227,7 +227,7 @@ public class ReceiveResource extends BaseResource {
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("error=signature-failed message={} sense_id={}", error.get().message, deviceId);
+            LOGGER.error("error=signature-failed sense_id={} message={}", deviceId, error.get().message);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
@@ -237,7 +237,7 @@ public class ReceiveResource extends BaseResource {
         try {
             userInfoList.addAll(this.mergedInfoDynamoDB.getInfo(data.getDeviceId()));  // get alarm related info from DynamoDB "cache".
         } catch (Exception ex) {
-            LOGGER.error("error=merge-info-retrieve-failure sense_id={}: {}", data.getDeviceId(), ex.getMessage());
+            LOGGER.error("error=merge-info-retrieve-failure sense_id={} message={}", deviceId, ex.getMessage());
         }
         LOGGER.debug("accounts_paired={} sense_id={}", userInfoList.size(), data.getDeviceId());
 
