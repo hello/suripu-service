@@ -230,13 +230,13 @@ public class RegisterResource extends BaseResource {
         }
     }
 
-    protected final MorpheusCommand.Builder pair(final String senseIdFromHeader, final byte[] encryptedRequest, final KeyStore keyStore, final PairAction action) {
+    protected final MorpheusCommand.Builder pair(final String senseIdFromHeader, final byte[] encryptedRequest, final KeyStore keyStore, final PairAction action, final String ipAddress) {
         final MorpheusCommand.Builder builder = MorpheusCommand.newBuilder()
                 .setVersion(PROTOBUF_VERSION);
         final DataLogger registrationLogger = kinesisLoggerFactory.get(QueueName.LOGS);
         final RegistrationLogger onboardingLogger = RegistrationLogger.create(senseIdFromHeader,
                 action,
-                request.getHeader("X-Forwarded-For"),
+                ipAddress,
                 registrationLogger);
 
         MorpheusCommand morpheusCommand = MorpheusCommand.getDefaultInstance();
@@ -405,7 +405,7 @@ public class RegisterResource extends BaseResource {
                     } else {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
                         builder.setError(SenseCommandProtos.ErrorType.DEVICE_ALREADY_PAIRED);
-                        LOGGER.error("error=pill-already-paired pill_id={}", pillId);
+                        LOGGER.error("error=pill-already-paired pill_id={} account_id={}", pillId, accountId);
                     }
                 }
                 break;
@@ -482,7 +482,7 @@ public class RegisterResource extends BaseResource {
         if(senseIdFromHeader != null){
             LOGGER.info("Sense Id from http header {}", senseIdFromHeader);
         }
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS);
+        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS, getIpAddress(request));
         builder.clearAccountId();
         if(senseIdFromHeader != null && senseIdFromHeader.equals(KeyStoreDynamoDB.DEFAULT_FACTORY_DEVICE_ID)){
             senseKeyStore.put(builder.getDeviceId(), Hex.encodeHexString(KeyStoreDynamoDB.DEFAULT_AES_KEY));
@@ -507,7 +507,7 @@ public class RegisterResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
         LOGGER.info("action=pair-sense sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
 
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS);
+        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS, ipAddress);
         if(senseIdFromHeader != null){
             return signAndSend(senseIdFromHeader, builder, senseKeyStore);
         }
@@ -528,7 +528,7 @@ public class RegisterResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
         LOGGER.info("action=pair-pill sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
 
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_PILL);
+        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_PILL, ipAddress);
         final String token = builder.getAccountId();
 
 
