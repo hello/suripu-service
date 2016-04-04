@@ -375,7 +375,7 @@ public class RegisterResource extends BaseResource {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_PAIR_SENSE);
                     } else {
                         final String errorMessage = String.format("Account %d tries to pair multiple senses", accountId);
-                        LOGGER.error("error=pair-multiple-sense account_id={}", accountId);
+                        LOGGER.error("error=pair-multiple-sense sense_id={} account_id={} ip_address={}", senseId, accountId, ipAddress);
                         onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
 
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
@@ -405,7 +405,7 @@ public class RegisterResource extends BaseResource {
                     } else {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
                         builder.setError(SenseCommandProtos.ErrorType.DEVICE_ALREADY_PAIRED);
-                        LOGGER.error("error=pill-already-paired pill_id={} account_id={}", pillId, accountId);
+                        LOGGER.error("error=pill-already-paired pill_id={} account_id={} ip_address={}", pillId, accountId, ipAddress);
                     }
                 }
                 break;
