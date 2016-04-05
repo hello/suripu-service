@@ -477,7 +477,9 @@ public class RegisterResource extends BaseResource {
     @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Deprecated
+    @Timed
     public byte[] registerMorpheus(final byte[] body) {
+
         final String senseIdFromHeader = this.request.getHeader(HelloHttpHeader.SENSE_ID);
         if(senseIdFromHeader != null){
             LOGGER.info("Sense Id from http header {}", senseIdFromHeader);
