@@ -182,11 +182,12 @@ public class ReceiveResource extends BaseResource {
         final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
 
         LOGGER.debug("sense_id={}", debugSenseId);
+        final String ipAddress = getIpAddress(request);
 
         try {
             data = DataInputProtos.batched_periodic_data.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            LOGGER.error("error=protobuf-parsing-failed sense_id={} message={}", debugSenseId, exception.getMessage());
+            LOGGER.error("error=protobuf-parsing-failed sense_id={} ip_address={} message={}", debugSenseId, ipAddress, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
         LOGGER.debug("Received protobuf message {}", TextFormat.shortDebugString(data));
@@ -203,7 +204,7 @@ public class ReceiveResource extends BaseResource {
 
         final String deviceId = data.getDeviceId();
         final List<String> groups = groupFlipper.getGroups(deviceId);
-        final String ipAddress = getIpAddress(request);
+
         final List<String> ipGroups = groupFlipper.getGroups(ipAddress);
 
 
@@ -227,7 +228,7 @@ public class ReceiveResource extends BaseResource {
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("error=signature-failed sense_id={} message={}", deviceId, error.get().message);
+            LOGGER.error("error=signature-failed sense_id={} ip_address={} message={}", deviceId, ipAddress, error.get().message);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 

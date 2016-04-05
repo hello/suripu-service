@@ -161,7 +161,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         this.registerResource.pair(SENSE_ID,
                 generateInvalidEncryptedMessage(),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS);
+                PairAction.PAIR_MORPHEUS, "127.0.0.1");
         verify(this.registerResource).throwPlainTextError(Response.Status.BAD_REQUEST, "");
 
     }
@@ -171,7 +171,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         this.registerResource.pair(SENSE_ID,
                 generateInvalidProtobuf(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS);
+                PairAction.PAIR_MORPHEUS,"127.0.0.1");
         verify(this.registerResource).throwPlainTextError(Response.Status.BAD_REQUEST, "");
     }
 
@@ -187,7 +187,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         final SenseCommandProtos.MorpheusCommand.Builder builder = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS);
+                PairAction.PAIR_MORPHEUS, "127.0.0.1");
         assertThat(builder.getType(), is(SenseCommandProtos.MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR));
         assertThat(builder.getError(), is(SenseCommandProtos.ErrorType.INTERNAL_OPERATION_FAILED));
     }
@@ -201,7 +201,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithInvalidSignature(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS);
+                PairAction.PAIR_MORPHEUS, "127.0.0.1");
         verify(this.registerResource).throwPlainTextError(Response.Status.UNAUTHORIZED, "invalid signature");
 
     }
@@ -214,7 +214,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithInvalidSignature(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS);
+                PairAction.PAIR_MORPHEUS, "127.0.0.1");
         verify(this.registerResource).throwPlainTextError(Response.Status.UNAUTHORIZED, "no key");
         verify(this.deviceDAO, times(0)).registerSense(1L, SENSE_ID);
     }
@@ -231,7 +231,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS).build();
+                PairAction.PAIR_MORPHEUS, "127.0.0.1").build();
         verify(this.deviceDAO, times(1)).registerSense(1L, SENSE_ID);
         assertThat(command.getType(), is(SenseCommandProtos.MorpheusCommand.CommandType.MORPHEUS_COMMAND_PAIR_SENSE));
     }
@@ -274,7 +274,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS).build();
+                PairAction.PAIR_MORPHEUS, "127.0.0.1").build();
         verify(this.deviceDAO, times(0)).registerSense(1L, SENSE_ID);
         assertThat(command.getType(), is(SenseCommandProtos.MorpheusCommand.CommandType.MORPHEUS_COMMAND_PAIR_SENSE));
     }
@@ -291,7 +291,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
-                PairAction.PAIR_MORPHEUS).build();
+                PairAction.PAIR_MORPHEUS, "127.0.0.1").build();
         verify(this.deviceDAO, times(0)).registerSense(1L, SENSE_ID);
         assertThat(command.getType(), is(SenseCommandProtos.MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR));
         assertThat(command.getError(), is(SenseCommandProtos.ErrorType.DEVICE_ALREADY_PAIRED));
