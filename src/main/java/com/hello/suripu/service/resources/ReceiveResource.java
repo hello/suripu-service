@@ -763,14 +763,19 @@ public class ReceiveResource extends BaseResource {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Timed
     public byte[] onPillBatchProtobufReceived(final byte[] body) {
-        final SignedMessage signedMessage = SignedMessage.parse(body);
-        SenseCommandProtos.batched_pill_data batchPilldata = null;
 
+        String senseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
+        if (senseId == null) {
+            senseId = "";
+        }
+
+        final SignedMessage signedMessage = SignedMessage.parse(body);
+        final String ipAddress = getIpAddress(request);
+        SenseCommandProtos.batched_pill_data batchPilldata = null;
         try {
             batchPilldata = SenseCommandProtos.batched_pill_data.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            final String errorMessage = String.format("Failed parsing protobuf: %s", exception.getMessage());
-            LOGGER.error(errorMessage);
+            LOGGER.error("error=protobuf-parsing-failed sense_id={} ip_address={} message={}", senseId, ipAddress, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
         LOGGER.debug("Received for pill protobuf message {}", TextFormat.shortDebugString(batchPilldata));
@@ -778,13 +783,13 @@ public class ReceiveResource extends BaseResource {
 
         final Optional<byte[]> optionalKeyBytes = keyStore.get(batchPilldata.getDeviceId());
         if (!optionalKeyBytes.isPresent()) {
-            LOGGER.error("Failed to get key from key store for device_id = {}", batchPilldata.getDeviceId());
+            LOGGER.error("error=keystore-get-failed sense_id={} ip_address={}", batchPilldata.getDeviceId(), ipAddress);
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("Failed validating signature with key: {}", error.get().message);
+            LOGGER.error("error=signature-failed sense_id={} ip_address={} message={}", batchPilldata.getDeviceId(), ipAddress, error.get().message);
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
