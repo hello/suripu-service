@@ -115,6 +115,7 @@ public class ReceiveResource extends BaseResource {
     protected Meter senseClockOutOfSync;
     protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
+    protected Meter filesMarkedForDownload;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
@@ -155,6 +156,7 @@ public class ReceiveResource extends BaseResource {
         this.senseClockOutOfSync3h = metrics.meter(name(ReceiveResource.class, "sense-clock-out-sync-3h"));
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
         this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
+        this.filesMarkedForDownload = metrics.meter(name(ReceiveResource.class, "files-marked-for-download"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
@@ -420,6 +422,14 @@ public class ReceiveResource extends BaseResource {
 
         // Synchronize
         final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest);
+
+        // Mark any updates we're sending
+        for (final FileSync.FileManifest.File file : newManifest.getFileInfoList()) {
+            // If marked for update and not delete, it's marked for download.
+            if (file.hasUpdateFile() && file.getUpdateFile() && !(file.hasDeleteFile() && file.getDeleteFile())) {
+                filesMarkedForDownload.mark();
+            }
+        }
 
         LOGGER.info("endpoint=files response-protobuf={}", TextFormat.shortDebugString(newManifest));
 
