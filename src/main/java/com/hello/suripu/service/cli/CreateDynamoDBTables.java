@@ -34,8 +34,8 @@ public class CreateDynamoDBTables extends ConfiguredCommand<SuripuConfiguration>
     private void createRingTimeHistoryTable(final SuripuConfiguration configuration, final AWSCredentialsProvider awsCredentialsProvider){
         final NewDynamoDBConfiguration config = configuration.dynamoDBConfiguration();
         final AmazonDynamoDBClient client = new AmazonDynamoDBClient(awsCredentialsProvider);
-        final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
-        final ImmutableMap<DynamoDBTableName, String> endpoints = configuration.dynamoDBConfiguration().endpoints();
+        final ImmutableMap<DynamoDBTableName, String> tableNames = config.tables();
+        final ImmutableMap<DynamoDBTableName, String> endpoints = config.endpoints();
 
         final String tableName = tableNames.get(DynamoDBTableName.RING_TIME_HISTORY);
         final String endpoint = endpoints.get(DynamoDBTableName.RING_TIME_HISTORY);

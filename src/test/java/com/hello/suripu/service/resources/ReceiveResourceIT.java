@@ -15,29 +15,26 @@ import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.models.Alarm;
 import com.hello.suripu.core.models.RingTime;
-import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.librato.rollout.RolloutClient;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.TimeZone;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import javax.ws.rs.WebApplicationException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.TimeZone;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 
 /**

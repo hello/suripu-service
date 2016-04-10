@@ -20,8 +20,8 @@ public class Util {
     }
 
     public static DateTime roundTimestampToMinuteUTC(long timestamp){
-        DateTime dateTimeUTC = new DateTime(timestamp, DateTimeZone.UTC);
-        DateTime roundedDateTimeUTC = new DateTime(
+        final DateTime dateTimeUTC = new DateTime(timestamp, DateTimeZone.UTC);
+        return new DateTime(
                 dateTimeUTC.getYear(),
                 dateTimeUTC.getMonthOfYear(),
                 dateTimeUTC.getDayOfMonth(),
@@ -29,7 +29,5 @@ public class Util {
                 dateTimeUTC.getMinuteOfHour(),
                 DateTimeZone.UTC
         );
-
-        return roundedDateTimeUTC;
     }
 }

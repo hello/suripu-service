@@ -74,7 +74,7 @@ public class RegisterResource extends BaseResource {
     protected enum PairState{
         NOT_PAIRED,
         PAIRED_WITH_CURRENT_ACCOUNT,
-        PAIRING_VIOLATION;
+        PAIRING_VIOLATION
     }
 
     @Context

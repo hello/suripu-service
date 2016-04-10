@@ -125,7 +125,6 @@ public class ReceiveResourceTest {
         final int uploadCycle = ReceiveResource.computeNextUploadInterval(nextRingTime, DateTime.now(DateTimeZone.UTC).withDayOfWeek(3).withHourOfDay(13).withMinuteOfHour(0), senseUploadConfiguration, false);
 
         final Integer increasedInterval = SenseUploadConfiguration.INCREASED_INTERVAL_NON_PEAK;
-        assertThat(increasedInterval.equals(increasedInterval), is(true));
         assertThat(increasedInterval > uploadCycle, is(true));
     }
 

@@ -12,7 +12,6 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -42,7 +41,7 @@ public class SignedMessage {
         }
     }
 
-    public SignedMessage(byte[] body, byte[] IV, byte[] sig, String debugMessage) {
+    public SignedMessage(byte[] body, byte[] IV, byte[] sig, final String debugMessage) {
         this.body = body;
         this.IV = IV;
         this.sig = sig;
@@ -103,7 +102,8 @@ public class SignedMessage {
             }
 
             final String paddedHex =  new String(Hex.encodeHex(padded));
-            sb.append("padded hex: " + paddedHex);
+            sb.append("padded hex: ");
+            sb.append(paddedHex);
             sb.append("\n");
 
             LOGGER.trace("padded: {}", paddedHex);
@@ -121,9 +121,11 @@ public class SignedMessage {
             }
 
 
-            sb.append("Received sig: " + new String(Hex.encodeHex(sig)));
+            sb.append("Received sig: ");
+            sb.append(new String(Hex.encodeHex(sig)));
             sb.append("\n");
-            sb.append("Decrypted sha: " + new String(Hex.encodeHex(decryptedBytes)));
+            sb.append("Decrypted sha: ");
+            sb.append(new String(Hex.encodeHex(decryptedBytes)));
             sb.append("\n");
 
             LOGGER.trace("Sig: {}", sig);
@@ -157,9 +159,7 @@ public class SignedMessage {
         r.nextBytes(IV);
         LOGGER.trace("random IV = {}", Hex.encodeHex(IV));
 
-        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-
-        try {
+        try(final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
 
             final MessageDigest md = MessageDigest.getInstance("SHA1");
             md.update(body);
@@ -193,26 +193,8 @@ public class SignedMessage {
             LOGGER.trace("Body = {}", Hex.encodeHex(data));
             return Optional.of(data);
 
-        } catch (NoSuchAlgorithmException e) {
+        } catch (Exception e) {
             LOGGER.error(e.getMessage());
-        } catch (NoSuchPaddingException e) {
-            LOGGER.error(e.getMessage());
-        } catch (InvalidAlgorithmParameterException e) {
-            LOGGER.error(e.getMessage());
-        } catch (InvalidKeyException e) {
-            LOGGER.error(e.getMessage());
-        } catch (BadPaddingException e) {
-            LOGGER.error(e.getMessage());
-        } catch (IllegalBlockSizeException e) {
-            LOGGER.error(e.getMessage());
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage());
-        } finally {
-            try {
-                byteArrayOutputStream.close();
-            } catch(IOException exception) {
-                LOGGER.warn("Failed closing stream");
-            }
         }
 
         return Optional.absent();

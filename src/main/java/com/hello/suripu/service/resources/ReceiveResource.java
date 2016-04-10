@@ -171,7 +171,7 @@ public class ReceiveResource extends BaseResource {
 
 
         final SignedMessage signedMessage = SignedMessage.parse(body);
-        DataInputProtos.batched_periodic_data data = null;
+        DataInputProtos.batched_periodic_data data;
 
         String debugSenseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
         if (debugSenseId == null) {
@@ -684,11 +684,7 @@ public class ReceiveResource extends BaseResource {
     }
 
     public boolean shouldOverrideOTA(final String deviceId, final List<String> groups) {
-        if (!featureFlipper.deviceFeatureActive(FeatureFlipper.SLEEP_SOUNDS_OVERRIDE_OTA, deviceId, groups)) {
-            return false;
-        }
-
-        return isAudioPlaying(deviceId);
+        return featureFlipper.deviceFeatureActive(FeatureFlipper.SLEEP_SOUNDS_OVERRIDE_OTA, deviceId, groups) && isAudioPlaying(deviceId);
     }
 
     public boolean isAudioPlaying(final String deviceId) {
@@ -717,10 +713,9 @@ public class ReceiveResource extends BaseResource {
 
     public static int computeNextUploadInterval(final RingTime nextRingTime, final DateTime now, final SenseUploadConfiguration senseUploadConfiguration, final Boolean isIncreasedInterval){
 
-        int uploadInterval = 1;
         final Long userNextAlarmTimestamp = nextRingTime.expectedRingTimeUTC; // This must be expected time, not actual.
         // Alter upload cycles based on date-time
-        uploadInterval = UploadSettings.computeUploadIntervalPerUserPerSetting(now, senseUploadConfiguration, isIncreasedInterval);
+        int uploadInterval = UploadSettings.computeUploadIntervalPerUserPerSetting(now, senseUploadConfiguration, isIncreasedInterval);
 
         // Boost upload cycle based on expected alarm deadline.
         final Integer adjustedUploadInterval = UploadSettings.adjustUploadIntervalInMinutes(now.getMillis(), uploadInterval, userNextAlarmTimestamp);
@@ -771,7 +766,7 @@ public class ReceiveResource extends BaseResource {
 
         final SignedMessage signedMessage = SignedMessage.parse(body);
         final String ipAddress = getIpAddress(request);
-        SenseCommandProtos.batched_pill_data batchPilldata = null;
+        SenseCommandProtos.batched_pill_data batchPilldata;
         try {
             batchPilldata = SenseCommandProtos.batched_pill_data.parseFrom(signedMessage.body);
         } catch (IOException exception) {

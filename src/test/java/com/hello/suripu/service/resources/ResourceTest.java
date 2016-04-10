@@ -6,8 +6,6 @@ import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.db.CalibrationDAO;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.FeatureStore;
-import com.hello.suripu.core.db.FileInfoDAO;
-import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;

@@ -13,16 +13,16 @@ public class AWSClientConfiguration extends Configuration {
     private static final Integer DEFAULT_MAX_ERROR_RETRY = 1;
 
     @JsonProperty("max_connections")
-    private Integer maxConnections = DEFAULT_MAX_CONNECTIONS;
+    private final Integer maxConnections = DEFAULT_MAX_CONNECTIONS;
 
     @JsonProperty("connection_timeout")
-    private Integer connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+    private final Integer connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
 
     @JsonProperty("request_timeout")
-    private Integer requestTimeout = DEFAULT_REQUEST_TIMEOUT;
+    private final Integer requestTimeout = DEFAULT_REQUEST_TIMEOUT;
     
     @JsonProperty("connection_max_idle_millis")
-    private Integer connectionMaxIdleMillis = DEFAULT_CONNECTION_MAX_IDLE_MILLIS;
+    private final Integer connectionMaxIdleMillis = DEFAULT_CONNECTION_MAX_IDLE_MILLIS;
 
     @JsonProperty("max_error_retry")
     private Integer maxErrorRetry = DEFAULT_MAX_ERROR_RETRY;
