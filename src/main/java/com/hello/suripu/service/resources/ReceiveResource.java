@@ -309,8 +309,8 @@ public class ReceiveResource extends BaseResource {
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.info("endpoint=sense-state protobuf-message={}", TextFormat.shortDebugString(senseState));
-        LOGGER.info("endpoint=sense-state valid-protobuf={}", senseState.toString());
+        LOGGER.info("endpoint=sense-state debug-sense-id={} protobuf-message={}",
+                debugSenseId, TextFormat.shortDebugString(senseState));
 
         if (!senseState.hasSenseId() || senseState.getSenseId().isEmpty()) {
             LOGGER.error("endpoint=sense-state error=empty-device-id debug-sense-id={}", debugSenseId);
@@ -370,7 +370,7 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.info("endpoint=files sense_id={}", debugSenseId);
+        LOGGER.debug("endpoint=files sense_id={}", debugSenseId);
 
         final SignedMessage signedMessage = SignedMessage.parse(body);
         final FileSync.FileManifest fileManifest;
@@ -383,7 +383,8 @@ public class ReceiveResource extends BaseResource {
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
+        LOGGER.debug("endpoint=files debug-sense-id={} protobuf-message={}",
+                debugSenseId, TextFormat.shortDebugString(fileManifest));
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
             LOGGER.error("endpoint=files error=manifest-empty-device-id");
