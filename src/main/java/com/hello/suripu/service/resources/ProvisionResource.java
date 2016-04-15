@@ -8,7 +8,7 @@ import com.hello.suripu.api.provision.ProvisionProtos;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.processors.OTAProcessor;
-import com.hello.suripu.core.resources.BaseResource;
+import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.librato.rollout.RolloutClient;
 import java.util.List;
