@@ -299,21 +299,21 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.debug("debug-sense-id={}", debugSenseId);
+        LOGGER.debug("sense_id={}", debugSenseId);
 
         try {
             senseState = State.SenseState.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
+            LOGGER.error("error=failed-parsing-protobuf sense_id={} exception={}",
                     debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.info("endpoint=sense-state debug-sense-id={} protobuf-message={}",
+        LOGGER.info("endpoint=sense-state sense_id={} protobuf-message={}",
                 debugSenseId, TextFormat.shortDebugString(senseState));
 
         if (!senseState.hasSenseId() || senseState.getSenseId().isEmpty()) {
-            LOGGER.error("endpoint=sense-state error=empty-device-id debug-sense-id={}", debugSenseId);
+            LOGGER.error("endpoint=sense-state error=empty-device-id sense_id={}", debugSenseId);
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -323,7 +323,7 @@ public class ReceiveResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
 
         if (!senseId.equals(debugSenseId)) {
-            LOGGER.error("endpoint=sense-state error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            LOGGER.error("endpoint=sense-state error=sense-id-no-match sense_id={} proto-sense-id={}", debugSenseId, senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
@@ -383,7 +383,7 @@ public class ReceiveResource extends BaseResource {
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.debug("endpoint=files debug-sense-id={} protobuf-message={}",
+        LOGGER.debug("endpoint=files sense_id={} protobuf-message={}",
                 debugSenseId, TextFormat.shortDebugString(fileManifest));
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
