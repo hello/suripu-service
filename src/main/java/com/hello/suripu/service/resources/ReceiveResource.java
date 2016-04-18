@@ -39,14 +39,16 @@ import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.processors.OTAProcessor;
 import com.hello.suripu.core.processors.RingProcessor;
-import com.hello.suripu.core.resources.BaseResource;
+
 import com.hello.suripu.core.util.DateTimeUtil;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.RoomConditionUtil;
 import com.hello.suripu.core.util.SenseLogLevelUtil;
+import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
+import com.hello.suripu.service.file_sync.FileManifestUtil;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.librato.rollout.RolloutClient;
@@ -88,7 +90,7 @@ public class ReceiveResource extends BaseResource {
     private static final int CLOCK_SKEW_TOLERATED_IN_HOURS = 2;
     private static final int CLOCK_DRIFT_MEASUREMENT_THRESHOLD = 2;
     private static final int CLOCK_BUG_SKEW_IN_HOURS = 6 * 30 * 24 - 1; // 6 months in hours
-    private static final String LOCAL_OFFICE_IP_ADDRESS = "199.87.82.114";
+    private static final String LOCAL_OFFICE_IP_ADDRESS = "204.28.123.251";
     private static final Integer FW_VERSION_0_9_22_RC7 = 1530439804;
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
     private static final String FIRMWARE_DEFAULT = "0";
@@ -115,7 +117,9 @@ public class ReceiveResource extends BaseResource {
     protected Meter senseClockOutOfSync;
     protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
-    protected Meter filesMarkedForDownload;
+    protected final Meter filesMarkedForDownload;
+    protected final Meter sdCardFailures;
+    protected final Histogram sdCardFreeMemoryBytes;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
@@ -157,6 +161,8 @@ public class ReceiveResource extends BaseResource {
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
         this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
         this.filesMarkedForDownload = metrics.meter(name(ReceiveResource.class, "files-marked-for-download"));
+        this.sdCardFailures = metrics.meter(name(ReceiveResource.class, "sd-card-failures"));
+        this.sdCardFreeMemoryBytes = metrics.histogram(name(ReceiveResource.class, "sd-card-free-memory-bytes"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
@@ -299,21 +305,21 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.debug("debug-sense-id={}", debugSenseId);
+        LOGGER.debug("sense_id={}", debugSenseId);
 
         try {
             senseState = State.SenseState.parseFrom(signedMessage.body);
         } catch (IOException exception) {
-            LOGGER.error("error=failed-parsing-protobuf sense-id={} exception={}",
+            LOGGER.error("error=failed-parsing-protobuf sense_id={} exception={}",
                     debugSenseId, exception.getMessage());
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.info("endpoint=sense-state protobuf-message={}", TextFormat.shortDebugString(senseState));
-        LOGGER.info("endpoint=sense-state valid-protobuf={}", senseState.toString());
+        LOGGER.info("endpoint=sense-state sense_id={} protobuf-message={}",
+                debugSenseId, TextFormat.shortDebugString(senseState));
 
         if (!senseState.hasSenseId() || senseState.getSenseId().isEmpty()) {
-            LOGGER.error("endpoint=sense-state error=empty-device-id debug-sense-id={}", debugSenseId);
+            LOGGER.error("endpoint=sense-state error=empty-device-id sense_id={}", debugSenseId);
             return plainTextError(Response.Status.BAD_REQUEST, "empty device id");
         }
 
@@ -323,7 +329,7 @@ public class ReceiveResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
 
         if (!senseId.equals(debugSenseId)) {
-            LOGGER.error("endpoint=sense-state error=sense-id-no-match debug-sense-id={} proto-sense-id={}", debugSenseId, senseId);
+            LOGGER.error("endpoint=sense-state error=sense-id-no-match sense_id={} proto-sense-id={}", debugSenseId, senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
@@ -370,7 +376,7 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        LOGGER.info("endpoint=files sense_id={}", debugSenseId);
+        LOGGER.debug("endpoint=files sense_id={}", debugSenseId);
 
         final SignedMessage signedMessage = SignedMessage.parse(body);
         final FileSync.FileManifest fileManifest;
@@ -383,7 +389,8 @@ public class ReceiveResource extends BaseResource {
             return plainTextError(Response.Status.BAD_REQUEST, "bad request");
         }
 
-        LOGGER.info("endpoint=files protobuf-message={}", TextFormat.shortDebugString(fileManifest));
+        LOGGER.debug("endpoint=files sense_id={} protobuf-message={}",
+                debugSenseId, TextFormat.shortDebugString(fileManifest));
 
         if (!fileManifest.hasSenseId() || fileManifest.getSenseId().isEmpty()) {
             LOGGER.error("endpoint=files error=manifest-empty-device-id");
@@ -418,6 +425,16 @@ public class ReceiveResource extends BaseResource {
         if (!fileManifest.hasFirmwareVersion()) {
             LOGGER.error("endpoint=files error=no-firmware-version sense_id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
+        }
+
+        // Mark SD card metrics
+        if (fileManifest.hasSdCardSize()) {
+            if (FileManifestUtil.hasFailedSdCard(fileManifest)) {
+                sdCardFailures.mark();
+            }
+            if (fileManifest.getSdCardSize().hasFreeMemory()) {
+                sdCardFreeMemoryBytes.update(fileManifest.getSdCardSize().getFreeMemory());
+            }
         }
 
         // Synchronize

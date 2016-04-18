@@ -24,7 +24,7 @@ import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
 import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
-import com.hello.suripu.core.resources.BaseResource;
+import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.service.SignedMessage;
