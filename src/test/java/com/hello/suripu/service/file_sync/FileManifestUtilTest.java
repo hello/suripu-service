@@ -208,4 +208,31 @@ public class FileManifestUtilTest {
         assertThat(message, containsString("err_code=100"));
         assertThat(message, containsString("err_type=NO_ERROR"));
     }
+
+    @Test
+    public void testHasFailedSdCard() throws Exception {
+        final FileSync.FileManifest noSdCardSize = FileSync.FileManifest.newBuilder().build();
+        assertThat(FileManifestUtil.hasFailedSdCard(noSdCardSize), is(false));
+
+        final FileSync.FileManifest okaySdCard = FileSync.FileManifest.newBuilder().setSdCardSize(
+                FileSync.FileManifest.MemoryInfo.newBuilder().setSdCardFailure(false)
+        ).build();
+        assertThat(FileManifestUtil.hasFailedSdCard(okaySdCard), is(false));
+
+        final FileSync.FileManifest failedSdCard = FileSync.FileManifest.newBuilder().setSdCardSize(
+                FileSync.FileManifest.MemoryInfo.newBuilder().setSdCardFailure(true)
+        ).build();
+        assertThat(FileManifestUtil.hasFailedSdCard(failedSdCard), is(true));
+    }
+
+    @Test
+    public void testGetResponseManifestFailedSdCard() throws Exception {
+        final FileSync.FileManifest requestManifest = FileSync.FileManifest.newBuilder()
+                .setSdCardSize(FileSync.FileManifest.MemoryInfo.newBuilder().setSdCardFailure(true).build())
+                .build();
+        final FileSync.FileManifest.FileDownload download = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename("filename")
+                .build();
+        assertThat(FileManifestUtil.getResponseManifest(requestManifest, ImmutableList.of(download)).getFileInfoCount(), is(0));
+    }
 }
