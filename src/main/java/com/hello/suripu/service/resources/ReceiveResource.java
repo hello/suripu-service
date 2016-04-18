@@ -48,6 +48,7 @@ import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
+import com.hello.suripu.service.file_sync.FileManifestUtil;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.librato.rollout.RolloutClient;
@@ -116,7 +117,9 @@ public class ReceiveResource extends BaseResource {
     protected Meter senseClockOutOfSync;
     protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
-    protected Meter filesMarkedForDownload;
+    protected final Meter filesMarkedForDownload;
+    protected final Meter sdCardFailures;
+    protected final Histogram sdCardFreeMemoryBytes;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
@@ -158,6 +161,8 @@ public class ReceiveResource extends BaseResource {
         this.pillClockOutOfSync = metrics.meter(name(ReceiveResource.class, "pill-clock-out-sync"));
         this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
         this.filesMarkedForDownload = metrics.meter(name(ReceiveResource.class, "files-marked-for-download"));
+        this.sdCardFailures = metrics.meter(name(ReceiveResource.class, "sd-card-failures"));
+        this.sdCardFreeMemoryBytes = metrics.histogram(name(ReceiveResource.class, "sd-card-free-memory-bytes"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
@@ -420,6 +425,16 @@ public class ReceiveResource extends BaseResource {
         if (!fileManifest.hasFirmwareVersion()) {
             LOGGER.error("endpoint=files error=no-firmware-version sense_id={}", senseId);
             return plainTextError(Response.Status.BAD_REQUEST, "no firmware version");
+        }
+
+        // Mark SD card metrics
+        if (fileManifest.hasSdCardSize()) {
+            if (FileManifestUtil.hasFailedSdCard(fileManifest)) {
+                sdCardFailures.mark();
+            }
+            if (fileManifest.getSdCardSize().hasFreeMemory()) {
+                sdCardFreeMemoryBytes.update(fileManifest.getSdCardSize().getFreeMemory());
+            }
         }
 
         // Synchronize

@@ -18,6 +18,9 @@ public class FileManifestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FileManifestUtil.class);
 
+    private static final Integer DEFAULT_QUERY_DELAY_MINUTES = 15;
+    private static final Integer REDUCED_QUERY_DELAY_MINUTES = 2;
+
     public static String fullPath(final FileSync.FileManifest.FileDownload fileDownload) {
         return fileDownload.getSdCardPath() + "/" + fileDownload.getSdCardFilename();
     }
@@ -95,6 +98,15 @@ public class FileManifestUtil {
     }
 
     /**
+     * @return True if this Sense has a failed SD card based on the FileManifest
+     */
+    public static Boolean hasFailedSdCard(final FileSync.FileManifest manifest) {
+        return  manifest.hasSdCardSize() &&
+                manifest.getSdCardSize().hasSdCardFailure() &&
+                manifest.getSdCardSize().getSdCardFailure();
+    }
+
+    /**
      * @param requestManifest FileManifest uploaded by Sense.
      * @param expectedFileDownloads FileDownloads that should be present on the Sense.
      * @return The new FileManifest that sense should have based on the diff between the requestManifest and expectedFileDownloads.
@@ -109,14 +121,20 @@ public class FileManifestUtil {
         final List<FileSync.FileManifest.File> filteredNewFiles;
         final Integer queryDelay;
 
-        if (newFiles.size() > 1) {
+        if (hasFailedSdCard(requestManifest)) {
+            // Do not send files for download if SD card is screwed
+            filteredNewFiles = Lists.newArrayList();
+            queryDelay = DEFAULT_QUERY_DELAY_MINUTES;
+
+        } else if (newFiles.size() > 1) {
             filteredNewFiles = newFiles.subList(0, 1); // Only send a single file.
-            queryDelay = 2; // Try again soon, we've got more files for ya!
+            queryDelay = REDUCED_QUERY_DELAY_MINUTES; // Try again soon, we've got more files for ya!
             LOGGER.info("sense-id={} files-to-update={} updates-remaining={}",
                     requestManifest.getSenseId(), joinPaths(filteredNewFiles), joinPaths(newFiles.subList(1, newFiles.size())));
+
         } else {
             filteredNewFiles = newFiles; // send them all
-            queryDelay = 15; // Nothing more for you here, check back in a while
+            queryDelay = DEFAULT_QUERY_DELAY_MINUTES; // Nothing more for you here, check back in a while
         }
 
         final List<FileSync.FileManifest.File> filesToSend;
