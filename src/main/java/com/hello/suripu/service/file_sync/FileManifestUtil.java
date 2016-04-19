@@ -125,11 +125,12 @@ public class FileManifestUtil {
             // Do not send files for download if SD card is screwed
             filteredNewFiles = Lists.newArrayList();
             queryDelay = DEFAULT_QUERY_DELAY_MINUTES;
+            LOGGER.warn("sense_id={} sd_card_failure=true", requestManifest.getSenseId());
 
         } else if (newFiles.size() > 1) {
             filteredNewFiles = newFiles.subList(0, 1); // Only send a single file.
             queryDelay = REDUCED_QUERY_DELAY_MINUTES; // Try again soon, we've got more files for ya!
-            LOGGER.info("sense-id={} files-to-update={} updates-remaining={}",
+            LOGGER.info("sense_id={} files-to-update={} updates-remaining={}",
                     requestManifest.getSenseId(), joinPaths(filteredNewFiles), joinPaths(newFiles.subList(1, newFiles.size())));
 
         } else {
@@ -141,6 +142,7 @@ public class FileManifestUtil {
         if (requestManifest.hasFileStatus() && requestManifest.getFileStatus().equals(FileSync.FileManifest.FileStatusType.DOWNLOAD_PENDING)) {
             // Don't send any files if download is pending to avoid re-downloading the same files
             filesToSend = Lists.newArrayList();
+            LOGGER.info("sense_id={} file_status_type=DOWNLOAD_PENDING", requestManifest.getSenseId());
         } else {
             filesToSend = filteredNewFiles;
         }
