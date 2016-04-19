@@ -119,7 +119,7 @@ public class ReceiveResource extends BaseResource {
     protected Meter pillClockOutOfSync;
     protected final Meter filesMarkedForDownload;
     protected final Meter sdCardFailures;
-    protected final Histogram sdCardFreeMemoryBytes;
+    protected final Histogram sdCardFreeMemoryKiloBytes;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
@@ -162,7 +162,7 @@ public class ReceiveResource extends BaseResource {
         this.drift = metrics.histogram(name(ReceiveResource.class, "sense-drift"));
         this.filesMarkedForDownload = metrics.meter(name(ReceiveResource.class, "files-marked-for-download"));
         this.sdCardFailures = metrics.meter(name(ReceiveResource.class, "sd-card-failures"));
-        this.sdCardFreeMemoryBytes = metrics.histogram(name(ReceiveResource.class, "sd-card-free-memory-bytes"));
+        this.sdCardFreeMemoryKiloBytes = metrics.histogram(name(ReceiveResource.class, "sd-card-free-memory-kb"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
@@ -433,7 +433,7 @@ public class ReceiveResource extends BaseResource {
                 sdCardFailures.mark();
             }
             if (fileManifest.getSdCardSize().hasFreeMemory()) {
-                sdCardFreeMemoryBytes.update(fileManifest.getSdCardSize().getFreeMemory());
+                sdCardFreeMemoryKiloBytes.update(fileManifest.getSdCardSize().getFreeMemory());
             }
         }
 
