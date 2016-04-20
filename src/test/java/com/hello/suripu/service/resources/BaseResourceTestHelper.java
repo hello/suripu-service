@@ -63,6 +63,6 @@ public class BaseResourceTestHelper {
     }
 
     public static void stubSynchronizeFileManifest(final FileSynchronizer synchronizer, final FileSync.FileManifest newManifest) {
-        when(synchronizer.synchronizeFileManifest(Mockito.anyString(), Mockito.any(FileSync.FileManifest.class))).thenReturn(newManifest);
+        when(synchronizer.synchronizeFileManifest(Mockito.anyString(), Mockito.any(FileSync.FileManifest.class), Mockito.anyBoolean())).thenReturn(newManifest);
     }
 }
