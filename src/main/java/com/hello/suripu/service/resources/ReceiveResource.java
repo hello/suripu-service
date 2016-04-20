@@ -51,6 +51,7 @@ import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.file_sync.FileManifestUtil;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
+import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -438,7 +439,8 @@ public class ReceiveResource extends BaseResource {
         }
 
         // Synchronize
-        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest);
+        final Boolean fileDownloadsDisabled = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, Collections.<String>emptyList());
+        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled);
 
         // Mark any updates we're sending
         for (final FileSync.FileManifest.File file : newManifest.getFileInfoList()) {
