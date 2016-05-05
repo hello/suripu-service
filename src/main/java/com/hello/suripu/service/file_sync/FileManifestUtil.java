@@ -1,5 +1,6 @@
 package com.hello.suripu.service.file_sync;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.hello.suripu.api.input.FileSync;
@@ -16,6 +17,9 @@ import java.util.Map;
 public class FileManifestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FileManifestUtil.class);
+
+    private static final Integer DEFAULT_QUERY_DELAY_MINUTES = 15;
+    private static final Integer REDUCED_QUERY_DELAY_MINUTES = 2;
 
     public static String fullPath(final FileSync.FileManifest.FileDownload fileDownload) {
         return fileDownload.getSdCardPath() + "/" + fileDownload.getSdCardFilename();
@@ -36,8 +40,8 @@ public class FileManifestUtil {
                 a.getSdCardPath(), b.getSdCardPath(),
                 a.getSdCardFilename(), b.getSdCardFilename(),
                 a.getSha1().toStringUtf8(), b.getSha1().toStringUtf8());
-        return a.getSdCardPath().equals(b.getSdCardPath()) &&
-                a.getSdCardFilename().equals(b.getSdCardFilename()) &&
+        return a.getSdCardPath().equalsIgnoreCase(b.getSdCardPath()) &&
+                a.getSdCardFilename().equalsIgnoreCase(b.getSdCardFilename()) &&
                 a.getSha1().equals(b.getSha1());
     }
 
@@ -46,24 +50,23 @@ public class FileManifestUtil {
             final List<FileSync.FileManifest.FileDownload> expectedFileDownloads)
     {
         final Map<String, FileSync.FileManifest.FileDownload> senseReportedMap = getPathToFileDownloadMap(senseReportedFileDownloads);
-        final Map<String, FileSync.FileManifest.FileDownload> expectedMap = getPathToFileDownloadMap(expectedFileDownloads);
 
         final List<FileSync.FileManifest.File> files = Lists.newArrayList();
 
         // Additions/updates
-        for (final Map.Entry<String, FileSync.FileManifest.FileDownload> expectedEntry : expectedMap.entrySet()) {
-            final Boolean reportedBySense = senseReportedMap.containsKey(expectedEntry.getKey());
+        for (final FileSync.FileManifest.FileDownload expectedFileDownload : expectedFileDownloads) {
+            final String expectedPath = fullPath(expectedFileDownload);
+            final Boolean reportedBySense = senseReportedMap.containsKey(expectedPath);
             final Boolean shouldUpdate = !reportedBySense ||
-                    !equalFileDownloads(senseReportedMap.get(expectedEntry.getKey()), expectedEntry.getValue());
+                    !equalFileDownloads(senseReportedMap.get(expectedPath), expectedFileDownload);
 
             if (shouldUpdate) {
                 // Only add files that need updating
                 files.add(FileSync.FileManifest.File.newBuilder()
-                        .setDownloadInfo(expectedEntry.getValue())
+                        .setDownloadInfo(expectedFileDownload)
                         .setUpdateFile(shouldUpdate)
                         .setDeleteFile(false)
                         .build());
-                break; // Only return 1 file update at a time to limit the response size.
             }
 
         }
@@ -84,6 +87,26 @@ public class FileManifestUtil {
     }
 
     /**
+     * @return "path/1:path/2:path/3:..."
+     */
+    private static String joinPaths(final List<FileSync.FileManifest.File> files) {
+        final List<String> paths = Lists.newArrayList();
+        for (final FileSync.FileManifest.File file: files) {
+            paths.add(fullPath(file.getDownloadInfo()));
+        }
+        return Joiner.on(":").join(paths);
+    }
+
+    /**
+     * @return True if this Sense has a failed SD card based on the FileManifest
+     */
+    public static Boolean hasFailedSdCard(final FileSync.FileManifest manifest) {
+        return  manifest.hasSdCardSize() &&
+                manifest.getSdCardSize().hasSdCardFailure() &&
+                manifest.getSdCardSize().getSdCardFailure();
+    }
+
+    /**
      * @param requestManifest FileManifest uploaded by Sense.
      * @param expectedFileDownloads FileDownloads that should be present on the Sense.
      * @return The new FileManifest that sense should have based on the diff between the requestManifest and expectedFileDownloads.
@@ -95,9 +118,39 @@ public class FileManifestUtil {
 
         final List<FileSync.FileManifest.File> newFiles = newFileListFromReportedAndExpected(reportedFileDownloads, expectedFileDownloads);
 
+        final List<FileSync.FileManifest.File> filteredNewFiles;
+        final Integer queryDelay;
+
+        if (hasFailedSdCard(requestManifest)) {
+            // Do not send files for download if SD card is screwed
+            filteredNewFiles = Lists.newArrayList();
+            queryDelay = DEFAULT_QUERY_DELAY_MINUTES;
+            LOGGER.warn("sense_id={} sd_card_failure=true", requestManifest.getSenseId());
+
+        } else if (newFiles.size() > 1) {
+            filteredNewFiles = newFiles.subList(0, 1); // Only send a single file.
+            queryDelay = REDUCED_QUERY_DELAY_MINUTES; // Try again soon, we've got more files for ya!
+            LOGGER.info("sense_id={} files-to-update={} updates-remaining={}",
+                    requestManifest.getSenseId(), joinPaths(filteredNewFiles), joinPaths(newFiles.subList(1, newFiles.size())));
+
+        } else {
+            filteredNewFiles = newFiles; // send them all
+            queryDelay = DEFAULT_QUERY_DELAY_MINUTES; // Nothing more for you here, check back in a while
+        }
+
+        final List<FileSync.FileManifest.File> filesToSend;
+        if (requestManifest.hasFileStatus() && requestManifest.getFileStatus().equals(FileSync.FileManifest.FileStatusType.DOWNLOAD_PENDING)) {
+            // Don't send any files if download is pending to avoid re-downloading the same files
+            filesToSend = Lists.newArrayList();
+            LOGGER.info("sense_id={} file_status_type=DOWNLOAD_PENDING", requestManifest.getSenseId());
+        } else {
+            filesToSend = filteredNewFiles;
+        }
+
         return FileSync.FileManifest.newBuilder()
-                .addAllFileInfo(newFiles)
+                .addAllFileInfo(filesToSend)
                 .setSenseId(requestManifest.getSenseId())
+                .setQueryDelay(queryDelay)
                 .build();
     }
 

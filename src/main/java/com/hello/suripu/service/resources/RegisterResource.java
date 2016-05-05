@@ -24,7 +24,7 @@ import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
 import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
-import com.hello.suripu.core.resources.BaseResource;
+import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.service.SignedMessage;
@@ -68,6 +68,7 @@ public class RegisterResource extends BaseResource {
     private final KeyStore senseKeyStore;
     private final MergedUserInfoDynamoDB mergedUserInfoDynamoDB;
 
+    private final static String UNKNOWN_SENSE_ID = "UNKNOWN";
     private final Boolean debug;
 
     protected enum PairState{
@@ -229,13 +230,13 @@ public class RegisterResource extends BaseResource {
         }
     }
 
-    protected final MorpheusCommand.Builder pair(final String senseIdFromHeader, final byte[] encryptedRequest, final KeyStore keyStore, final PairAction action) {
+    protected final MorpheusCommand.Builder pair(final String senseIdFromHeader, final byte[] encryptedRequest, final KeyStore keyStore, final PairAction action, final String ipAddress) {
         final MorpheusCommand.Builder builder = MorpheusCommand.newBuilder()
                 .setVersion(PROTOBUF_VERSION);
         final DataLogger registrationLogger = kinesisLoggerFactory.get(QueueName.LOGS);
         final RegistrationLogger onboardingLogger = RegistrationLogger.create(senseIdFromHeader,
                 action,
-                request.getHeader("X-Forwarded-For"),
+                ipAddress,
                 registrationLogger);
 
         MorpheusCommand morpheusCommand = MorpheusCommand.getDefaultInstance();
@@ -282,7 +283,6 @@ public class RegisterResource extends BaseResource {
             builder.setError(SenseCommandProtos.ErrorType.INTERNAL_OPERATION_FAILED);
             final String logMessage = String.format("Token not found %s for device Id %s", token, deviceId);
             LOGGER.error(logMessage);
-
             onboardingLogger.logFailure(Optional.<String>absent(), logMessage);
             onboardingLogger.commit();
             return builder;
@@ -349,6 +349,7 @@ public class RegisterResource extends BaseResource {
 
             final String errorMessage = String.format("Wrong request command type %s", morpheusCommand.getType().toString());
             LOGGER.error(errorMessage);
+            LOGGER.error("error=wrong-request-command-type sense_id={}", senseId);
             onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
             onboardingLogger.commit();
 
@@ -374,7 +375,7 @@ public class RegisterResource extends BaseResource {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_PAIR_SENSE);
                     } else {
                         final String errorMessage = String.format("Account %d tries to pair multiple senses", accountId);
-                        LOGGER.error(errorMessage);
+                        LOGGER.error("error=pair-multiple-sense sense_id={} account_id={} ip_address={}", senseId, accountId, ipAddress);
                         onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
 
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
@@ -383,7 +384,7 @@ public class RegisterResource extends BaseResource {
                 }
                 break;
                 case PAIR_PILL: {
-                    LOGGER.warn("Attempting to pair pill {} to account {}", pillId, accountId);
+                    LOGGER.warn("action=pair-pill pill_id={} account_id={}", pillId, accountId);
                     final PairState pairState = getPillPairingState(senseId, pillId, accountId, onboardingLogger);
                     if (pairState == PairState.NOT_PAIRED) {
                         this.deviceDAO.registerPill(accountId, deviceId);
@@ -404,7 +405,7 @@ public class RegisterResource extends BaseResource {
                     } else {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
                         builder.setError(SenseCommandProtos.ErrorType.DEVICE_ALREADY_PAIRED);
-                        LOGGER.warn("Pill already paired {} ", pillId);
+                        LOGGER.error("error=pill-already-paired pill_id={} account_id={} ip_address={}", pillId, accountId, ipAddress);
                     }
                 }
                 break;
@@ -447,7 +448,7 @@ public class RegisterResource extends BaseResource {
 
             dataLogger.put(accountId.toString(), registration.build().toByteArray());
         } catch (Exception e) {
-            LOGGER.error("Failed inserting registration into kinesis stream: {}", e.getMessage());
+            LOGGER.error("error=failed-registration-insert-kinesis message={}", e.getMessage());
         }
 
         onboardingLogger.commit();
@@ -457,7 +458,7 @@ public class RegisterResource extends BaseResource {
     private byte[] signAndSend(final String senseId, final MorpheusCommand.Builder morpheusCommandBuilder, final KeyStore keyStore) {
         final Optional<byte[]> keyBytesOptional = keyStore.get(senseId);
         if(!keyBytesOptional.isPresent()) {
-            LOGGER.error("Missing AES key for deviceId = {}", senseId);
+            LOGGER.error("error=missing-aes-key sense_id={}", senseId);
             return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
         }
         LOGGER.trace("Key used to sign device {} : {}", senseId, Hex.encodeHexString(keyBytesOptional.get()));
@@ -476,12 +477,14 @@ public class RegisterResource extends BaseResource {
     @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Deprecated
+    @Timed
     public byte[] registerMorpheus(final byte[] body) {
+
         final String senseIdFromHeader = this.request.getHeader(HelloHttpHeader.SENSE_ID);
         if(senseIdFromHeader != null){
             LOGGER.info("Sense Id from http header {}", senseIdFromHeader);
         }
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS);
+        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS, getIpAddress(request));
         builder.clearAccountId();
         if(senseIdFromHeader != null && senseIdFromHeader.equals(KeyStoreDynamoDB.DEFAULT_FACTORY_DEVICE_ID)){
             senseKeyStore.put(builder.getDeviceId(), Hex.encodeHexString(KeyStoreDynamoDB.DEFAULT_AES_KEY));
@@ -498,10 +501,15 @@ public class RegisterResource extends BaseResource {
     @Timed
     public byte[] registerSense(final byte[] body) {
         final String senseIdFromHeader = this.request.getHeader(HelloHttpHeader.SENSE_ID);
-        if(senseIdFromHeader != null){
-            LOGGER.info("Sense Id from http header {}", senseIdFromHeader);
-        }
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS);
+
+        final String senseId = (senseIdFromHeader != null) ? senseIdFromHeader : UNKNOWN_SENSE_ID;
+        final String middleFW = getFirmwareVersion(request, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final String topFW = getFirmwareVersion(request, HelloHttpHeader.TOP_FW_VERSION);
+
+        final String ipAddress = getIpAddress(request);
+        LOGGER.info("action=pair-sense sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
+
+        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS, ipAddress);
         if(senseIdFromHeader != null){
             return signAndSend(senseIdFromHeader, builder, senseKeyStore);
         }
@@ -515,7 +523,14 @@ public class RegisterResource extends BaseResource {
     @Timed
     public byte[] registerPill(final byte[] body) {
         final String senseIdFromHeader = this.request.getHeader(HelloHttpHeader.SENSE_ID);
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_PILL);
+        final String senseId = (senseIdFromHeader != null) ? senseIdFromHeader : UNKNOWN_SENSE_ID;
+
+        final String middleFW = getFirmwareVersion(request, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final String topFW = getFirmwareVersion(request, HelloHttpHeader.TOP_FW_VERSION);
+        final String ipAddress = getIpAddress(request);
+        LOGGER.info("action=pair-pill sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
+
+        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_PILL, ipAddress);
         final String token = builder.getAccountId();
 
 
@@ -528,6 +543,7 @@ public class RegisterResource extends BaseResource {
             return signAndSend(senseIdFromHeader, builder, senseKeyStore);
         }
 
+        LOGGER.warn("action=pair-pill-token-lookup sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
         // TODO: Remove this and get sense id from header after the firmware is fixed.
         final Optional<AccessToken> accessTokenOptional = getClientDetailsByToken(
                 new ClientCredentials(new OAuthScope[]{OAuthScope.AUTH}, token),
@@ -544,7 +560,16 @@ public class RegisterResource extends BaseResource {
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
-        final String senseId = deviceAccountPairs.get(0).externalDeviceId;
-        return signAndSend(senseId, builder, senseKeyStore);
+        final String senseIdFromDB = deviceAccountPairs.get(0).externalDeviceId;
+        return signAndSend(senseIdFromDB, builder, senseKeyStore);
+    }
+
+    // TODO: move this in base resource
+    private static String getFirmwareVersion(final HttpServletRequest request, final String board) {
+        final String fwVersion =
+                (request.getHeader(board) != null)
+                ? request.getHeader(board)
+                : "0";
+        return fwVersion;
     }
 }

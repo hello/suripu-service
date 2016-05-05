@@ -103,7 +103,7 @@ public class FileSynchronizerTest {
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("leadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/leadingSlash"));
 
-        final FileSync.FileManifest firstResponseManifest = fileSynchronizer.synchronizeFileManifest(senseId, initialManifest);
+        final FileSync.FileManifest firstResponseManifest = fileSynchronizer.synchronizeFileManifest(senseId, initialManifest, true);
         assertThat(firstResponseManifest.getFileInfoCount(), is(1));
         assertThat(firstResponseManifest.getSenseId(), is(senseId));
         assertThat(firstResponseManifest.getFileInfo(0).getDeleteFile(), is(false));
@@ -111,7 +111,7 @@ public class FileSynchronizerTest {
 
         // Now pass in the response manifest that we got and ensure that we get the _other_ file in the next response.
         Mockito.when(fileManifestDAO.updateManifest(Mockito.eq(senseId), Mockito.eq(firstResponseManifest))).thenReturn(Optional.of(initialManifest));
-        final FileSync.FileManifest secondResponseManifest = fileSynchronizer.synchronizeFileManifest(senseId, firstResponseManifest);
+        final FileSync.FileManifest secondResponseManifest = fileSynchronizer.synchronizeFileManifest(senseId, firstResponseManifest, true);
         assertThat(secondResponseManifest.getFileInfoCount(), is(1));
         assertThat(secondResponseManifest.getSenseId(), is(senseId));
         assertThat(secondResponseManifest.getFileInfo(0).getDeleteFile(), is(false));

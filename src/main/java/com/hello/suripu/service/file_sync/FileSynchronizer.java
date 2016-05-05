@@ -20,6 +20,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -88,10 +89,13 @@ public class FileSynchronizer {
      * @param fileManifest FileManifest reported by this Sense
      * @return Response FileManifest that Sense should have
      */
-    public FileSync.FileManifest synchronizeFileManifest(final String senseId, final FileSync.FileManifest fileManifest) {
+    public FileSync.FileManifest synchronizeFileManifest(final String senseId,
+                                                         final FileSync.FileManifest fileManifest,
+                                                         final Boolean fileDownloadsEnabled)
+    {
         logErrors(fileManifest);
         fileManifestDAO.updateManifest(senseId, fileManifest);
-        final FileSync.FileManifest responseManifest = getResponseManifest(senseId, fileManifest);
+        final FileSync.FileManifest responseManifest = getResponseManifest(senseId, fileManifest, fileDownloadsEnabled);
         logManifestChanges(senseId, responseManifest);
         return responseManifest;
     }
@@ -174,9 +178,20 @@ public class FileSynchronizer {
         return downloads;
     }
 
-    private FileSync.FileManifest getResponseManifest(final String senseId, final FileSync.FileManifest requestManifest) {
-        final List<FileInfo> expectedFileInfo = fileInfoDAO.getAll(requestManifest.getFirmwareVersion(), senseId);
-        final List<FileSync.FileManifest.FileDownload> expectedFileDownloads = getFileDownloadsFromFileInfo(expectedFileInfo);
+    private FileSync.FileManifest getResponseManifest(final String senseId,
+                                                      final FileSync.FileManifest requestManifest,
+                                                      final Boolean fileDownloadsEnabled)
+    {
+        final List<FileSync.FileManifest.FileDownload> expectedFileDownloads;
+        if (fileDownloadsEnabled) {
+            LOGGER.debug("sense_id={} file_downloads_enabled={}", senseId, fileDownloadsEnabled);
+            final List<FileInfo> expectedFileInfo = fileInfoDAO.getAll(requestManifest.getFirmwareVersion(), senseId);
+            expectedFileDownloads = getFileDownloadsFromFileInfo(expectedFileInfo);
+        } else {
+            LOGGER.info("sense_id={} file_downloads_enabled={}", senseId, fileDownloadsEnabled);
+            expectedFileDownloads = Collections.emptyList();
+        }
+
         return FileManifestUtil.getResponseManifest(requestManifest, expectedFileDownloads);
     }
 

@@ -15,7 +15,6 @@ import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.models.Alarm;
 import com.hello.suripu.core.models.RingTime;
-import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
@@ -29,7 +28,6 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import javax.ws.rs.WebApplicationException;
 
@@ -37,8 +35,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-
 
 /**
  * Created by jnorgan on 10/14/15.
@@ -83,6 +79,7 @@ public class ReceiveResourceIT extends ResourceTest {
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;
         receiveResource.senseClockOutOfSync = meter;
+        receiveResource.senseClockOutOfSync3h = meter;
         receiveResource.pillClockOutOfSync = meter;
         this.receiveResource = spy(receiveResource);
 
@@ -307,7 +304,7 @@ public class ReceiveResourceIT extends ResourceTest {
         final byte[] response = receiveResource.updateFileManifest(signProtobuf(requestManifest, KEY));
         final byte[] protobufBytes = Arrays.copyOfRange(response, 16 + 32, response.length);
         final FileSync.FileManifest responseManifest = FileSync.FileManifest.parseFrom(protobufBytes);
-        assertThat(responseManifest, is(FileSync.FileManifest.newBuilder(newManifest).setQueryDelay(15).build()));
+        assertThat(responseManifest, is(newManifest));
     }
 
     @Test(expected= WebApplicationException.class)

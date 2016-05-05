@@ -131,6 +131,7 @@ public class FileManifestUtilTest {
                 .setUpdateFile(true)
                 .setDeleteFile(false)
                 .build()));
+        assertThat(withAddedFile.getQueryDelay(), is(15));
 
         final FileSync.FileManifest withWrongDir = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(staysTheSame, wrongDirectory));
         assertThat(withWrongDir.getSenseId(), is(senseId));
@@ -146,6 +147,7 @@ public class FileManifestUtilTest {
                 .setUpdateFile(true)
                 .setDeleteFile(false)
                 .build()));
+        assertThat(withWrongDir.getQueryDelay(), is(15));
 
         final FileSync.FileManifest withWrongSha = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(staysTheSame, rightNameWrongSha));
         assertThat(withWrongSha.getSenseId(), is(senseId));
@@ -161,12 +163,37 @@ public class FileManifestUtilTest {
                 .setUpdateFile(true)
                 .setDeleteFile(false)
                 .build()));
+        assertThat(withWrongSha.getQueryDelay(), is(15));
 
         final FileSync.FileManifest withWrongHost = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(wrongHostRightName));
         // Wrong host is totally cool, so shouldn't be returned
         assertThat(withWrongHost.getSenseId(), is(senseId));
         assertThat(withWrongHost.getFileInfoCount(), is(0));
+        assertThat(withWrongHost.getQueryDelay(), is(15));
 
+        // Multiple files to download, only return the first
+        final FileSync.FileManifest withAddedAndWrongDir = FileManifestUtil.getResponseManifest(uploadedManifest, ImmutableList.of(staysTheSame, shouldBeAdded, wrongDirectory));
+        assertThat(withAddedAndWrongDir.getSenseId(), is(senseId));
+        assertThat(withAddedAndWrongDir.getFileInfoCount(), is(1));
+        assertThat(withAddedAndWrongDir.getFileInfoList(), contains(FileSync.FileManifest.File.newBuilder()
+                .setDownloadInfo(FileSync.FileManifest.FileDownload.newBuilder()
+                        .setSdCardFilename(fileShouldBeAdded)
+                        .setSdCardPath(defaultDir)
+                        .setSha1(sha)
+                        .setUrl(url)
+                        .setHost(host)
+                        .build())
+                .setUpdateFile(true)
+                .setDeleteFile(false)
+                .build()));
+        assertThat(withAddedAndWrongDir.getQueryDelay(), is(2));
+
+        // Don't send any files if download pending
+        final FileSync.FileManifest withDownloadPending = FileManifestUtil.getResponseManifest(
+                FileSync.FileManifest.newBuilder(uploadedManifest).setFileStatus(FileSync.FileManifest.FileStatusType.DOWNLOAD_PENDING).build(),
+                ImmutableList.of(staysTheSame, shouldBeAdded, wrongDirectory));
+        assertThat(withDownloadPending.getQueryDelay(), is(2));
+        assertThat(withDownloadPending.getFileInfoCount(), is(0));
     }
 
     @Test
@@ -180,5 +207,32 @@ public class FileManifestUtilTest {
         assertThat(message, containsString("filename=thename"));
         assertThat(message, containsString("err_code=100"));
         assertThat(message, containsString("err_type=NO_ERROR"));
+    }
+
+    @Test
+    public void testHasFailedSdCard() throws Exception {
+        final FileSync.FileManifest noSdCardSize = FileSync.FileManifest.newBuilder().build();
+        assertThat(FileManifestUtil.hasFailedSdCard(noSdCardSize), is(false));
+
+        final FileSync.FileManifest okaySdCard = FileSync.FileManifest.newBuilder().setSdCardSize(
+                FileSync.FileManifest.MemoryInfo.newBuilder().setSdCardFailure(false)
+        ).build();
+        assertThat(FileManifestUtil.hasFailedSdCard(okaySdCard), is(false));
+
+        final FileSync.FileManifest failedSdCard = FileSync.FileManifest.newBuilder().setSdCardSize(
+                FileSync.FileManifest.MemoryInfo.newBuilder().setSdCardFailure(true)
+        ).build();
+        assertThat(FileManifestUtil.hasFailedSdCard(failedSdCard), is(true));
+    }
+
+    @Test
+    public void testGetResponseManifestFailedSdCard() throws Exception {
+        final FileSync.FileManifest requestManifest = FileSync.FileManifest.newBuilder()
+                .setSdCardSize(FileSync.FileManifest.MemoryInfo.newBuilder().setSdCardFailure(true).build())
+                .build();
+        final FileSync.FileManifest.FileDownload download = FileSync.FileManifest.FileDownload.newBuilder()
+                .setSdCardFilename("filename")
+                .build();
+        assertThat(FileManifestUtil.getResponseManifest(requestManifest, ImmutableList.of(download)).getFileInfoCount(), is(0));
     }
 }
