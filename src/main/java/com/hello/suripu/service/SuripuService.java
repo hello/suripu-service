@@ -9,9 +9,10 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
 import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
@@ -57,6 +58,7 @@ import com.hello.suripu.core.logging.KinesisLoggerFactory;
 
 import com.hello.suripu.coredw8.managers.DynamoDBClientManaged;
 import com.hello.suripu.coredw8.managers.KinesisClientManaged;
+import com.hello.suripu.coredw8.metrics.RegexMetricFilter;
 import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.coredw8.oauth.AuthDynamicFeature;
 import com.hello.suripu.coredw8.oauth.AuthValueFactoryProvider;
@@ -223,13 +225,16 @@ public class SuripuService extends Application<SuripuConfiguration> {
           final String env = (configuration.getDebug()) ? "dev" : "prod";
           final String prefix = String.format("%s.%s.suripu-service", apiKey, env);
 
+          final ImmutableList<String> metrics = ImmutableList.copyOf(configuration.getGraphite().getIncludeMetrics());
+          final RegexMetricFilter metricFilter = new RegexMetricFilter(metrics);
+
           final Graphite graphite = new Graphite(new InetSocketAddress(graphiteHostName, 2003));
 
           final GraphiteReporter reporter = GraphiteReporter.forRegistry(environment.metrics())
               .prefixedWith(prefix)
               .convertRatesTo(TimeUnit.SECONDS)
               .convertDurationsTo(TimeUnit.MILLISECONDS)
-              .filter(MetricFilter.ALL)
+              .filter(metricFilter)
               .build(graphite);
           reporter.start(interval, TimeUnit.SECONDS);
 
@@ -267,7 +272,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
             .setPrefix("Bearer")
             .setLogger(activityLogger)
             .buildAuthFilter()));
-        environment.jersey().register(ScopesAllowedDynamicFeature.class);
+        environment.jersey().register(new ScopesAllowedDynamicFeature(applicationStore));
         environment.jersey().register(new AuthValueFactoryProvider.Binder<>(AccessToken.class));
 
         final AmazonDynamoDB teamStoreDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.TEAMS);
