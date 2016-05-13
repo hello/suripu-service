@@ -188,7 +188,7 @@ dynamodb:
   tables:
     alarm_info : prod_alarm_info
     features : features
-    firmware_upgrade_path : fw_upgrade_path
+    firmware_upgrade_path : prod_fw_upgrade_path
     firmware_versions : prod_firmware_versions_mapping
     ota_history : ota_history
     pill_key_store : pill_key_store
