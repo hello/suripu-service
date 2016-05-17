@@ -121,6 +121,7 @@ public class ReceiveResource extends BaseResource {
     protected final Meter filesMarkedForDownload;
     protected final Meter sdCardFailures;
     protected final Histogram sdCardFreeMemoryKiloBytes;
+    protected Meter otaFileResponses;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
 
@@ -164,6 +165,7 @@ public class ReceiveResource extends BaseResource {
         this.filesMarkedForDownload = metrics.meter(name(ReceiveResource.class, "files-marked-for-download"));
         this.sdCardFailures = metrics.meter(name(ReceiveResource.class, "sd-card-failures"));
         this.sdCardFreeMemoryKiloBytes = metrics.histogram(name(ReceiveResource.class, "sd-card-free-memory-kb"));
+        this.otaFileResponses = metrics.meter(name(ReceiveResource.class, "ota-file-responses"));
         this.ringDurationSec = ringDurationSec;
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
@@ -693,6 +695,9 @@ public class ReceiveResource extends BaseResource {
             addCommandsToResponse(deviceName, firmwareVersion, responseBuilder);
         }
 
+        if (responseBuilder.getFilesCount() > 0) {
+            otaFileResponses.mark();
+        }
 
         final OutputProtos.SyncResponse syncResponse = responseBuilder.build();
 
