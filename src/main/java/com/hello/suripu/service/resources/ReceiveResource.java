@@ -190,7 +190,9 @@ public class ReceiveResource extends BaseResource {
         }
 
         final String topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
-        final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
+        //middle fw version is passed as hex string here and is a dec string in build_info.txt. Converting from hex string here.
+        final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ?
+            Integer.toString(Integer.parseInt(this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), 16)) : FIRMWARE_DEFAULT;
 
         LOGGER.debug("sense_id={}", debugSenseId);
         final String ipAddress = getIpAddress(request);
