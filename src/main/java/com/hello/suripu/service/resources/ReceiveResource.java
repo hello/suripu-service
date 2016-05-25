@@ -93,7 +93,7 @@ public class ReceiveResource extends BaseResource {
     private static final int CLOCK_DRIFT_MEASUREMENT_THRESHOLD = 2;
     private static final int CLOCK_BUG_SKEW_IN_HOURS = 6 * 30 * 24 - 1; // 6 months in hours
     private static final String LOCAL_OFFICE_IP_ADDRESS = "204.28.123.251";
-    private static final Integer FW_VERSION_0_9_22_RC7 = 1530439804;
+    private static final String FW_VERSION_0_9_22_RC7 = "5B38A87C";
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
     private final int ringDurationSec;
 
@@ -945,7 +945,7 @@ public class ReceiveResource extends BaseResource {
                                                                             final DataInputProtos.batched_periodic_data batchData,
                                                                             final List<UserInfo> userInfoList,
                                                                             final Boolean hasOutOfSyncClock) {
-        final int currentFirmwareVersion = batchData.getFirmwareVersion();
+        final String currentFirmwareVersion = Integer.toString(batchData.getFirmwareVersion());
         final int uptimeInSeconds = (batchData.hasUptimeInSecond()) ? batchData.getUptimeInSecond() : -1;
         final DateTime currentDTZ = DateTime.now().withZone(userTimeZone);
         final DateTime startOTAWindow = new DateTime(userTimeZone).withHourOfDay(otaConfiguration.getStartUpdateWindowHour()).withMinuteOfHour(0).withSecondOfMinute(0);
@@ -981,7 +981,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         // Allow special handling for devices coming from factory on 0.9.22_rc7 with the clock sync issue
-        if (hasOutOfSyncClock && currentFirmwareVersion == FW_VERSION_0_9_22_RC7) {
+        if (hasOutOfSyncClock && currentFirmwareVersion.equals(FW_VERSION_0_9_22_RC7)) {
             Integer pillCount = 0;
             for (final UserInfo userInfo : userInfoList) {
                 if (userInfo.pillColor.isPresent()) {

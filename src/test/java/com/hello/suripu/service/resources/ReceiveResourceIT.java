@@ -44,8 +44,8 @@ import static org.mockito.Mockito.spy;
 public class ReceiveResourceIT extends ResourceTest {
     private static final String SENSE_ID = "fake-sense";
     private static final byte[] KEY = "1234567891234567".getBytes();
-    private static final Integer FIRMWARE_VERSION = 12345678;
-    private static final Integer FW_VERSION_0_9_22_RC7 = 1530439804;
+    private static final String FIRMWARE_VERSION = "BC614E";
+    private static final String FW_VERSION_0_9_22_RC7 = "5B38A87C";
     private static final Integer FUTURE_UNIX_TIMESTAMP = 2139176514; //14 Oct 2037 23:41:54 GMT
     private List<UserInfo> userInfoList;
     private List<OutputProtos.SyncResponse.FileDownload> fileList;
@@ -418,14 +418,14 @@ public class ReceiveResourceIT extends ResourceTest {
         assertThat(emptyResponse, is("0"));
     }
 
-    private byte[] generateValidProtobufWithSignature(final byte[] key, final Integer uptime, final Integer firmwareVersion, final Integer unixTime){
+    private byte[] generateValidProtobufWithSignature(final byte[] key, final Integer uptime, final String firmwareVersion, final Integer unixTime){
 
         final DataInputProtos.periodic_data data = DataInputProtos.periodic_data.newBuilder()
                 .setUnixTime(unixTime)
                 .build();
         final DataInputProtos.batched_periodic_data batch = DataInputProtos.batched_periodic_data.newBuilder()
                 .setDeviceId(SENSE_ID)
-                .setFirmwareVersion(firmwareVersion)
+                .setFirmwareVersion(Integer.valueOf(firmwareVersion))
                 .setUptimeInSecond(uptime)
                 .addData(data)
                 .build();
@@ -456,7 +456,7 @@ public class ReceiveResourceIT extends ResourceTest {
         doReturn(hourOfDay).when(otaConfiguration).getEndUpdateWindowHour();
     }
 
-    private void stubGetPopulatedFirmwareFileListForGroup (final FirmwareUpdateStore firmwareUpdateStore, final String groupName, final Integer firmwareVersion, final List<OutputProtos.SyncResponse.FileDownload> fileList) {
+    private void stubGetPopulatedFirmwareFileListForGroup (final FirmwareUpdateStore firmwareUpdateStore, final String groupName, final String firmwareVersion, final List<OutputProtos.SyncResponse.FileDownload> fileList) {
         doReturn(fileList).when(firmwareUpdateStore).getFirmwareUpdate(SENSE_ID, groupName, firmwareVersion, false);
     }
 
