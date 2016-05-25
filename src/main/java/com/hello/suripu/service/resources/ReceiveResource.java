@@ -118,7 +118,7 @@ public class ReceiveResource extends BaseResource {
     protected Meter senseClockOutOfSync;
     protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
-    protected final Meter filesMarkedForDownload;
+    protected Meter filesMarkedForDownload;
     protected final Meter sdCardFailures;
     protected final Histogram sdCardFreeMemoryKiloBytes;
     protected Meter otaFileResponses;
@@ -189,10 +189,8 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        final String topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
-        //middle fw version is passed as hex string here and is a dec string in build_info.txt. Converting from hex string here.
-        final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ?
-            Integer.toString(Integer.parseInt(this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), 16)) : FIRMWARE_DEFAULT;
+        final String topFW = getFWVersionFromHeader(this.request, HelloHttpHeader.TOP_FW_VERSION);
+        final String middleFW = getFWVersionFromHeader(this.request, HelloHttpHeader.MIDDLE_FW_VERSION);
 
         LOGGER.debug("sense_id={}", debugSenseId);
         final String ipAddress = getIpAddress(request);
@@ -1100,5 +1098,20 @@ public class ReceiveResource extends BaseResource {
 
     public static boolean isClockOutOfSync(final DateTime sampleTime, final DateTime referenceTime, final Integer offsetThreshold) {
         return sampleTime.isAfter(referenceTime.plusHours(offsetThreshold)) || sampleTime.isBefore(referenceTime.minusHours(offsetThreshold));
+    }
+
+    public static String getFWVersionFromHeader(final HttpServletRequest request, final String headerName) {
+        if (headerName.equals(HelloHttpHeader.TOP_FW_VERSION) && request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) {
+            return request.getHeader(HelloHttpHeader.TOP_FW_VERSION);
+        }
+        //middle fw version is passed as hex string here and is a dec string in build_info.txt. Converting from hex string here.
+        if (headerName.equals(HelloHttpHeader.MIDDLE_FW_VERSION) && request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) {
+            try {
+                return Integer.toString(Integer.parseInt(request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), 16));
+            } catch (Exception ex) {
+                LOGGER.error("error=fw-header-format middle_fw_value='{}'", request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), ex.getMessage());
+            }
+        }
+        return FIRMWARE_DEFAULT;
     }
 }
