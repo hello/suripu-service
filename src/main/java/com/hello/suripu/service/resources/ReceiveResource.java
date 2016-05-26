@@ -93,7 +93,7 @@ public class ReceiveResource extends BaseResource {
     private static final int CLOCK_DRIFT_MEASUREMENT_THRESHOLD = 2;
     private static final int CLOCK_BUG_SKEW_IN_HOURS = 6 * 30 * 24 - 1; // 6 months in hours
     private static final String LOCAL_OFFICE_IP_ADDRESS = "204.28.123.251";
-    private static final String FW_VERSION_0_9_22_RC7 = "5B38A87C";
+    private static final String FW_VERSION_0_9_22_RC7 = "1530439804";
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
     private final int ringDurationSec;
 

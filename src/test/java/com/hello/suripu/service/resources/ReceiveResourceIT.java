@@ -44,8 +44,8 @@ import static org.mockito.Mockito.spy;
 public class ReceiveResourceIT extends ResourceTest {
     private static final String SENSE_ID = "fake-sense";
     private static final byte[] KEY = "1234567891234567".getBytes();
-    private static final String FIRMWARE_VERSION = "BC614E";
-    private static final String FW_VERSION_0_9_22_RC7 = "5B38A87C";
+    private static final String FIRMWARE_VERSION = "12345678";
+    private static final String FW_VERSION_0_9_22_RC7 = "1530439804";
     private static final Integer FUTURE_UNIX_TIMESTAMP = 2139176514; //14 Oct 2037 23:41:54 GMT
     private List<UserInfo> userInfoList;
     private List<OutputProtos.SyncResponse.FileDownload> fileList;
