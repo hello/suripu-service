@@ -10,6 +10,7 @@ import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.Util;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -84,8 +85,8 @@ public class LogsResource {
             return;
         }
 
-        final String middleFWVersion = (request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) == null) ? "" : request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION);
-        final String topFWVersion = (request.getHeader(HelloHttpHeader.TOP_FW_VERSION) == null) ? "" : request.getHeader(HelloHttpHeader.TOP_FW_VERSION);
+        final String topFWVersion = Util.getFWVersionFromHeader(this.request, HelloHttpHeader.TOP_FW_VERSION);
+        final String middleFWVersion = Util.getFWVersionFromHeader(this.request, HelloHttpHeader.MIDDLE_FW_VERSION);
 
         final LoggingProtos.LogMessage logMessage = LoggingProtos.LogMessage.newBuilder()
                 .setMessage(log.getText())

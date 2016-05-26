@@ -18,6 +18,7 @@ import com.hello.suripu.core.models.RingTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.librato.rollout.RolloutClient;
 import java.util.Arrays;
@@ -392,14 +393,14 @@ public class ReceiveResourceIT extends ResourceTest {
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION, "1.0.3");
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, "11A1");
 
-        final String topResponse = ReceiveResource.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION);
+        final String topResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION);
         assertThat(topResponse, is("1.0.3"));
 
-        final String middleResponse = ReceiveResource.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final String middleResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
         assertThat(middleResponse, is("4513"));
 
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, "11A1KJL");
-        final String badResponse = ReceiveResource.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final String badResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
         assertThat(badResponse, is("0"));
     }
 
@@ -407,13 +408,13 @@ public class ReceiveResourceIT extends ResourceTest {
     public void testNullFWVersionHeader() throws Exception {
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION, null);
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, null);
-        final String response = ReceiveResource.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final String response = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
         assertThat(response, is("0"));
-        final String topResponse = ReceiveResource.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION);
+        final String topResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION);
         assertThat(topResponse, is("0"));
 
         BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, " ");
-        final String emptyResponse = ReceiveResource.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final String emptyResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
         assertThat(emptyResponse, is("0"));
     }
 
