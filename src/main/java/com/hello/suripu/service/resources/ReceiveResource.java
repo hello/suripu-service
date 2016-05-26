@@ -46,6 +46,7 @@ import com.hello.suripu.core.util.RoomConditionUtil;
 import com.hello.suripu.core.util.SenseLogLevelUtil;
 import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.file_sync.FileManifestUtil;
@@ -94,7 +95,6 @@ public class ReceiveResource extends BaseResource {
     private static final String LOCAL_OFFICE_IP_ADDRESS = "204.28.123.251";
     private static final Integer FW_VERSION_0_9_22_RC7 = 1530439804;
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
-    private static final String FIRMWARE_DEFAULT = "0";
     private final int ringDurationSec;
 
     private final KeyStore keyStore;
@@ -118,7 +118,7 @@ public class ReceiveResource extends BaseResource {
     protected Meter senseClockOutOfSync;
     protected Meter senseClockOutOfSync3h;
     protected Meter pillClockOutOfSync;
-    protected final Meter filesMarkedForDownload;
+    protected Meter filesMarkedForDownload;
     protected final Meter sdCardFailures;
     protected final Histogram sdCardFreeMemoryKiloBytes;
     protected Meter otaFileResponses;
@@ -189,8 +189,8 @@ public class ReceiveResource extends BaseResource {
             debugSenseId = "";
         }
 
-        final String topFW = (this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.TOP_FW_VERSION) : FIRMWARE_DEFAULT;
-        final String middleFW = (this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) ? this.request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) : FIRMWARE_DEFAULT;
+        final String topFW = Util.getFWVersionFromHeader(this.request, HelloHttpHeader.TOP_FW_VERSION);
+        final String middleFW = Util.getFWVersionFromHeader(this.request, HelloHttpHeader.MIDDLE_FW_VERSION);
 
         LOGGER.debug("sense_id={}", debugSenseId);
         final String ipAddress = getIpAddress(request);

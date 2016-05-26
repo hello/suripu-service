@@ -18,6 +18,7 @@ import com.hello.suripu.core.models.RingTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.librato.rollout.RolloutClient;
 import java.util.Arrays;
@@ -81,6 +82,8 @@ public class ReceiveResourceIT extends ResourceTest {
         receiveResource.senseClockOutOfSync = meter;
         receiveResource.senseClockOutOfSync3h = meter;
         receiveResource.pillClockOutOfSync = meter;
+        receiveResource.otaFileResponses = meter;
+        receiveResource.filesMarkedForDownload = meter;
         this.receiveResource = spy(receiveResource);
 
         BaseResourceTestHelper.stubGetHeader(receiveResource.request, "X-Forwarded-For", "127.0.0.1");
@@ -383,6 +386,36 @@ public class ReceiveResourceIT extends ResourceTest {
         copyTo(message, iv, body.length, body.length + iv.length);
         copyTo(message, sig, body.length + iv.length, message.length);
         return message;
+    }
+
+    @Test
+    public void testGetFWVersionFromHeader() throws Exception {
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION, "1.0.3");
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, "11A1");
+
+        final String topResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION);
+        assertThat(topResponse, is("1.0.3"));
+
+        final String middleResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        assertThat(middleResponse, is("4513"));
+
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, "11A1KJL");
+        final String badResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        assertThat(badResponse, is("0"));
+    }
+
+    @Test
+    public void testNullFWVersionHeader() throws Exception {
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION, null);
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, null);
+        final String response = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        assertThat(response, is("0"));
+        final String topResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.TOP_FW_VERSION);
+        assertThat(topResponse, is("0"));
+
+        BaseResourceTestHelper.stubGetHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION, " ");
+        final String emptyResponse = Util.getFWVersionFromHeader(httpServletRequest, HelloHttpHeader.MIDDLE_FW_VERSION);
+        assertThat(emptyResponse, is("0"));
     }
 
     private byte[] generateValidProtobufWithSignature(final byte[] key, final Integer uptime, final Integer firmwareVersion, final Integer unixTime){
