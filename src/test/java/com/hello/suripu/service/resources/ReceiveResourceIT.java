@@ -120,8 +120,8 @@ public class ReceiveResourceIT extends ResourceTest {
         stubGetUserInfo(mergedUserInfoDynamoDB, userInfoList);
         stubGetFeatureActive(featureFlipper, FeatureFlipper.ENABLE_OTA_UPDATES, Collections.EMPTY_LIST, true);
         stubGetFeatureActive(featureFlipper, FeatureFlipper.OTA_RELEASE, Collections.EMPTY_LIST, true);
-        stubGetOTAWindowStart(otaConfiguration, 11);
-        stubGetOTAWindowEnd(otaConfiguration, 20);
+        stubGetOTAWindowStart(otaConfiguration, 0);
+        stubGetOTAWindowEnd(otaConfiguration, 23);
         stubGetPopulatedFirmwareFileListForGroup(firmwareUpdateStore, FeatureFlipper.OTA_RELEASE, FIRMWARE_VERSION, fileList);
 
         final long unixTime = DateTime.now().withZone(userTimeZone).getMillis() / 1000L;
