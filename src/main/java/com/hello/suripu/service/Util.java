@@ -49,6 +49,11 @@ public class Util {
         //middle fw version is passed as hex string here and is a dec string in build_info.txt. Converting from hex string here.
         if (headerName.equals(HelloHttpHeader.MIDDLE_FW_VERSION) && request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION) != null) {
             try {
+
+                if (Long.parseLong(request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), 16) > Integer.MAX_VALUE) {
+                    return FIRMWARE_DEFAULT;
+                }
+                
                 return Integer.toString(Integer.parseInt(request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), 16));
             } catch (Exception ex) {
                 LOGGER.error("error=fw-header-format middle_fw_value='{}'", request.getHeader(HelloHttpHeader.MIDDLE_FW_VERSION), ex.getMessage());
