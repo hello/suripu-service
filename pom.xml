@@ -9,8 +9,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.7</java.version>
-        <suripu.version>0.8.5254</suripu.version>
-        <jodatime.version>20150319</jodatime.version>
+        <suripu.version>0.8.5266</suripu.version>
+        <jodatime.version>2.9.4</jodatime.version>
         <dropwizard.version>0.8.2</dropwizard.version>
         <metrics.version>3.1.2</metrics.version>
         <aws.sdk.version>1.10.34</aws.sdk.version>
@@ -82,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk</artifactId>
+            <artifactId>aws-java-sdk-core</artifactId>
             <version>${aws.sdk.version}</version>
             <exclusions>
                 <exclusion>
@@ -94,6 +94,21 @@
                     <artifactId>jackson-databind</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-kinesis</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-dynamodb</artifactId>
+            <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard</groupId>
@@ -165,6 +180,10 @@
                     <groupId>com.google.guava</groupId>
                     <artifactId>guava</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -217,11 +236,6 @@
             <version>2.5.0</version>
         </dependency>
         <dependency>
-            <groupId>com.indextank</groupId>
-            <artifactId>indextank-java</artifactId>
-            <version>1.0.6</version>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.11</version>
@@ -241,17 +255,10 @@
             <version>1.9.5</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
-            <groupId>suripu-jodatime</groupId>
-            <artifactId>suripu-jodatime</artifactId>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
             <version>${jodatime.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
