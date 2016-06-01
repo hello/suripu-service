@@ -1,7 +1,6 @@
 package com.hello.suripu.service.utils;
 
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.cloudfront.model.InvalidArgumentException;
 import com.google.common.base.Optional;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hello.suripu.api.logging.LoggingProtos;
@@ -43,7 +42,7 @@ public class RegistrationLoggerTest {
 
     @Test
     public void testGenericExceptionException(){
-        testException(new InvalidArgumentException("generic exception"));
+        testException(new IllegalArgumentException("generic exception"));
     }
 
     @Test
