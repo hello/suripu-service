@@ -2,9 +2,9 @@ package com.hello.suripu.service.resources;
 
 import com.google.common.base.Optional;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.core.configuration.QueueName;
-import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.core.oauth.ClientCredentials;
 import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
@@ -12,15 +12,18 @@ import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
+import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.service.SignedMessage;
+
 import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
 import java.util.Arrays;
 import java.util.UUID;
+
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -43,7 +46,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
 
     private Optional<AccessToken> stubGetClientDetailsByToken(final OAuthTokenStore<AccessToken, ClientDetails, ClientCredentials> tokenStore) {
         try {
-            return tokenStore.getClientDetailsByToken(any(ClientCredentials.class), any(DateTime.class));
+            return tokenStore.getTokenByClientCredentials(any(ClientCredentials.class), any(DateTime.class));
         } catch (MissingRequiredScopeException e) {
             return Optional.absent();
         }
@@ -59,7 +62,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     }
 
     private AccessToken getAccessToken(){
-        return new AccessToken(UUID.randomUUID(), UUID.randomUUID(), 0L, DateTime.now(), 1L, 1L, new OAuthScope[]{ OAuthScope.AUTH });
+        return new AccessToken(UUID.randomUUID(), UUID.randomUUID(), 0L, 0L, DateTime.now(), 1L, 1L, new OAuthScope[]{ OAuthScope.AUTH });
     }
 
     private void stubGetSensePairingState(final RegisterResource registerResource, final RegisterResource.PairState returnValue){

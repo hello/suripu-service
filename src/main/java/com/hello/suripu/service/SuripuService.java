@@ -1,5 +1,8 @@
 package com.hello.suripu.service;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -9,36 +12,22 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
 import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
-import com.hello.suripu.core.db.FileInfoDAO;
-import com.hello.suripu.core.db.FileManifestDAO;
-import com.hello.suripu.core.db.FileManifestDynamoDB;
-import com.hello.suripu.core.db.SenseStateDynamoDB;
-import com.hello.suripu.core.flipper.DynamoDBAdapter;
-import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
-import com.hello.suripu.coredw8.filters.SlowRequestsFilter;
-
-import com.hello.suripu.coredw8.db.AccessTokenDAO;
-import com.hello.suripu.coredw8.health.DynamoDbHealthCheck;
-import com.hello.suripu.coredw8.health.KinesisHealthCheck;
-import com.hello.suripu.coredw8.clients.AmazonDynamoDBClientFactory;
 import com.hello.suripu.core.configuration.DynamoDBTableName;
 import com.hello.suripu.core.configuration.QueueName;
-
 import com.hello.suripu.core.db.ApplicationsDAO;
 import com.hello.suripu.core.db.CalibrationDAO;
 import com.hello.suripu.core.db.CalibrationDynamoDB;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.FeatureStore;
+import com.hello.suripu.core.db.FileInfoDAO;
+import com.hello.suripu.core.db.FileManifestDAO;
+import com.hello.suripu.core.db.FileManifestDynamoDB;
 import com.hello.suripu.core.db.FirmwareUpgradePathDAO;
 import com.hello.suripu.core.db.FirmwareVersionMappingDAO;
 import com.hello.suripu.core.db.KeyStore;
@@ -47,15 +36,22 @@ import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.OTAHistoryDAODynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
+import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.db.TeamStore;
 import com.hello.suripu.core.db.util.JodaArgumentFactory;
 import com.hello.suripu.core.db.util.PostgresIntegerArrayArgumentFactory;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
+import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.flipper.GroupFlipper;
-
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
-
+import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
+import com.hello.suripu.coredw8.clients.AmazonDynamoDBClientFactory;
+import com.hello.suripu.coredw8.db.AccessTokenDAO;
+import com.hello.suripu.coredw8.db.AuthorizationCodeDAO;
+import com.hello.suripu.coredw8.filters.SlowRequestsFilter;
+import com.hello.suripu.coredw8.health.DynamoDbHealthCheck;
+import com.hello.suripu.coredw8.health.KinesisHealthCheck;
 import com.hello.suripu.coredw8.managers.DynamoDBClientManaged;
 import com.hello.suripu.coredw8.managers.KinesisClientManaged;
 import com.hello.suripu.coredw8.metrics.RegexMetricFilter;
@@ -95,10 +91,10 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.DispatcherType;
 import javax.servlet.FilterRegistration;
 
+import io.dropwizard.Application;
 import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.jdbi.OptionalContainerFactory;
 import io.dropwizard.jdbi.bundles.DBIExceptionsBundle;
-import io.dropwizard.Application;
 import io.dropwizard.server.AbstractServerFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
@@ -262,8 +258,9 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final AccessTokenDAO accessTokenDAO = commonDB.onDemand(AccessTokenDAO.class);
         final ApplicationsDAO applicationsDAO = commonDB.onDemand(ApplicationsDAO.class);
+        final AuthorizationCodeDAO authCodeDAO = commonDB.onDemand(AuthorizationCodeDAO.class);
         final PersistentApplicationStore applicationStore = new PersistentApplicationStore(applicationsDAO);
-        final PersistentAccessTokenStore tokenStore = new PersistentAccessTokenStore(accessTokenDAO, applicationStore);
+        final PersistentAccessTokenStore tokenStore = new PersistentAccessTokenStore(accessTokenDAO, applicationStore, authCodeDAO);
         final DataLogger activityLogger = kinesisLoggerFactory.get(QueueName.ACTIVITY_STREAM);
         environment.jersey().register(new AuthDynamicFeature(new OAuthCredentialAuthFilter.Builder<AccessToken>()
             .setAuthenticator(new OAuthAuthenticator(tokenStore))

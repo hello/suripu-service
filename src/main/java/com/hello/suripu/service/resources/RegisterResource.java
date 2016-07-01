@@ -1,8 +1,8 @@
 package com.hello.suripu.service.resources;
 
-import com.amazonaws.AmazonServiceException;
 import com.google.common.base.Optional;
 
+import com.amazonaws.AmazonServiceException;
 import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.ble.SenseCommandProtos;
@@ -18,25 +18,30 @@ import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.models.DeviceAccountPair;
-import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.core.oauth.ClientCredentials;
 import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
 import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
-import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
+import com.hello.suripu.coredw8.oauth.AccessToken;
+import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.utils.RegistrationLogger;
 import com.librato.rollout.RolloutClient;
 
 import org.apache.commons.codec.binary.Hex;
-
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.awt.*;
+import java.io.IOException;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -47,11 +52,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.awt.Color;
-import java.io.IOException;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 /**
@@ -224,7 +224,7 @@ public class RegisterResource extends BaseResource {
 
     private final Optional<AccessToken> getClientDetailsByToken(final ClientCredentials credentials, final DateTime now) {
         try {
-            return this.tokenStore.getClientDetailsByToken(credentials, now);
+            return this.tokenStore.getTokenByClientCredentials(credentials, now);
         } catch (MissingRequiredScopeException e) {
             return Optional.absent();
         }
