@@ -1,15 +1,16 @@
 package com.hello.suripu.service.resources;
 
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.TextFormat;
+
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
@@ -39,7 +40,6 @@ import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.processors.OTAProcessor;
 import com.hello.suripu.core.processors.RingProcessor;
-
 import com.hello.suripu.core.util.DateTimeUtil;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.RoomConditionUtil;
@@ -54,6 +54,7 @@ import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
+
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -61,6 +62,13 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -71,12 +79,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -952,7 +954,7 @@ public class ReceiveResource extends BaseResource {
         final DateTime endOTAWindow = new DateTime(userTimeZone).withHourOfDay(otaConfiguration.getEndUpdateWindowHour()).withMinuteOfHour(0).withSecondOfMinute(0);
         final Set<String> alwaysOTAGroups = otaConfiguration.getAlwaysOTAGroups();
         final Integer deviceUptimeDelay = otaConfiguration.getDeviceUptimeDelay();
-        final Boolean bypassOTAChecks = (featureFlipper.deviceFeatureActive(FeatureFlipper.BYPASS_OTA_CHECKS, deviceID, deviceGroups));
+        Boolean bypassOTAChecks = (featureFlipper.deviceFeatureActive(FeatureFlipper.BYPASS_OTA_CHECKS, deviceID, deviceGroups));
         final String ipAddress = getIpAddress(request);
 
 
@@ -1001,6 +1003,18 @@ public class ReceiveResource extends BaseResource {
                 }
             }
             return Collections.emptyList();
+        }
+
+        //Devices on a fw version that requires upgrade and have the response command for forced ota set should bypass OTA checks
+        if ((featureFlipper.deviceFeatureActive(FeatureFlipper.FW_VERSIONS_REQUIRING_UPDATE, currentFirmwareVersion, Collections.EMPTY_LIST))) {
+            final Map<ResponseCommand, String> commandMap = responseCommandsDAODynamoDB.getResponseCommands(
+                deviceID,
+                Integer.valueOf(currentFirmwareVersion),
+                Lists.newArrayList(ResponseCommand.FORCE_OTA));
+            if(!commandMap.isEmpty() && commandMap.containsKey(ResponseCommand.FORCE_OTA)) {
+                LOGGER.info("action=force-ota device_id={}", deviceID);
+                bypassOTAChecks = true;
+            }
         }
 
         // Primary OTA code path
