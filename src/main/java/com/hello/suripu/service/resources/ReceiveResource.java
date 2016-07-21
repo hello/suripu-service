@@ -1,16 +1,15 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.TextFormat;
-
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
@@ -27,7 +26,10 @@ import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB.ResponseCommand;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
 import com.hello.suripu.core.db.SenseStateDynamoDB;
+import com.hello.suripu.core.firmware.FirmwareUpdate;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
+import com.hello.suripu.core.firmware.HardwareVersion;
+import com.hello.suripu.core.firmware.SenseFirmwareUpdateQuery;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
@@ -54,7 +56,6 @@ import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
-
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -62,13 +63,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -79,6 +73,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -218,17 +218,8 @@ public class ReceiveResource extends BaseResource {
         final String deviceId = data.getDeviceId();
         final List<String> groups = groupFlipper.getGroups(deviceId);
 
-        final List<String> ipGroups = groupFlipper.getGroups(ipAddress);
-
-
         if (featureFlipper.deviceFeatureActive(FeatureFlipper.PRINT_RAW_PB, deviceId, groups)) {
             LOGGER.debug("sense_id={} raw_pb={}", deviceId, Hex.encodeHexString(body));
-        }
-
-        if (OTAProcessor.isPCH(ipAddress, ipGroups) && !(featureFlipper.deviceFeatureActive(FeatureFlipper.PCH_SPECIAL_OTA, deviceId, groups))) {
-            // return 202 to not confuse provisioning script with correct test key
-            LOGGER.info("IP {} is from PCH. Return HTTP 202", ipAddress);
-            return plainTextError(Response.Status.ACCEPTED, "");
         }
 
         final Optional<byte[]> optionalKeyBytes = getKey(deviceId, groups, ipAddress);
@@ -959,28 +950,7 @@ public class ReceiveResource extends BaseResource {
 
 
         // OTA SPECIAL CASES
-
-        // If device is coming from PCH, immediately allow OTA
-        final List<String> ipGroups = groupFlipper.getGroups(ipAddress);
-        final boolean pchOTA = (featureFlipper.deviceFeatureActive(FeatureFlipper.PCH_SPECIAL_OTA, deviceID, deviceGroups) &&
-                OTAProcessor.isPCH(ipAddress, ipGroups));
-        if (pchOTA) {
-            LOGGER.debug("PCH Special OTA for device: {}", deviceID);
-            return firmwareUpdateStore.getFirmwareUpdate(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion, true);
-        }
-
-        // Allow OTA updates only to specified devices in the Hello offices
-        final Boolean isOfficeDeviceWithOverride = ((featureFlipper.deviceFeatureActive(FeatureFlipper.OFFICE_ONLY_OVERRIDE, deviceID, deviceGroups) && OTAProcessor.isHelloOffice(ipAddress)));
-        //Provides for an in-office override feature that allows OTA (ignores checks) provided the IP is our office IP.
-        if (isOfficeDeviceWithOverride) {
-            if (!deviceGroups.isEmpty()) {
-                final String updateGroup = deviceGroups.get(0);
-                LOGGER.info("Office OTA Override for DeviceId {}", deviceID);
-                return firmwareUpdateStore.getFirmwareUpdate(deviceID, updateGroup, currentFirmwareVersion, false);
-            } else {
-                return Collections.emptyList();
-            }
-        }
+        final HardwareVersion hardwareVersion = HardwareVersion.SENSE_ONE;
 
         // Allow special handling for devices coming from factory on 0.9.22_rc7 with the clock sync issue
         if (hasOutOfSyncClock && currentFirmwareVersion.equals(FW_VERSION_0_9_22_RC7)) {
@@ -993,12 +963,16 @@ public class ReceiveResource extends BaseResource {
             if (pillCount > 1 || uptimeInSeconds > (CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS * DateTimeConstants.SECONDS_PER_MINUTE)) {
                 if (!deviceGroups.isEmpty()) {
                     final String updateGroup = deviceGroups.get(0);
+                    final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSense(deviceID, updateGroup, currentFirmwareVersion, hardwareVersion);
                     LOGGER.warn("Clock Sync OTA Override for DeviceId {} with Group {}", deviceID, updateGroup);
-                    return firmwareUpdateStore.getFirmwareUpdate(deviceID, updateGroup, currentFirmwareVersion, false);
+                    final FirmwareUpdate firmwareUpdate = firmwareUpdateStore.getFirmwareUpdate(senseFirmwareUpdateQuery);
+                    return firmwareUpdate.files;
                 } else {
                     if (featureFlipper.deviceFeatureActive(FeatureFlipper.OTA_RELEASE, deviceID, deviceGroups)) {
                         LOGGER.warn("Clock Sync OTA Override for DeviceId {} with no group", deviceID);
-                        return firmwareUpdateStore.getFirmwareUpdate(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion, false);
+                        final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSense(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion, hardwareVersion);
+                        final FirmwareUpdate firmwareUpdate = firmwareUpdateStore.getFirmwareUpdate(senseFirmwareUpdateQuery);
+                        return firmwareUpdate.files;
                     }
                 }
             }
@@ -1021,7 +995,6 @@ public class ReceiveResource extends BaseResource {
         final boolean canOTA = OTAProcessor.canDeviceOTA(
                 deviceID,
                 deviceGroups,
-                ipGroups,
                 alwaysOTAGroups,
                 deviceUptimeDelay,
                 uptimeInSeconds,
@@ -1037,11 +1010,16 @@ public class ReceiveResource extends BaseResource {
             if (!deviceGroups.isEmpty()) {
                 final String updateGroup = deviceGroups.get(0);
                 LOGGER.debug("DeviceId {} belongs to groups: {}", deviceID, deviceGroups);
-                return firmwareUpdateStore.getFirmwareUpdate(deviceID, updateGroup, currentFirmwareVersion, false);
+                final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSenseOne(deviceID, updateGroup, currentFirmwareVersion);
+                final FirmwareUpdate firmwareUpdate = firmwareUpdateStore.getFirmwareUpdate(senseFirmwareUpdateQuery);
+                return firmwareUpdate.files;
             } else {
+                // This feature flipper can disable OTA for all groups and all devices if set to 0%
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.OTA_RELEASE, deviceID, deviceGroups)) {
                     LOGGER.debug("Feature 'release' is active for device: {}", deviceID);
-                    return firmwareUpdateStore.getFirmwareUpdate(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion, false);
+                    final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSenseOne(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion);
+                    final FirmwareUpdate firmwareUpdate = firmwareUpdateStore.getFirmwareUpdate(senseFirmwareUpdateQuery);
+                    return firmwareUpdate.files;
                 }
             }
         }
