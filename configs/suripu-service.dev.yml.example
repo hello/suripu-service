@@ -198,6 +198,7 @@ dynamodb:
     firmware_upgrade_path : fw_upgrade_path
     firmware_versions : firmware_versions_mapping
     ota_history : ota_history
+    ota_file_settings: ota_file_settings
     pill_key_store : pill_key_store
     ring_time_history: ring_time_history_by_account
     sense_key_store : key_store
@@ -213,6 +214,7 @@ dynamodb:
       firmware_upgrade_path : http://localhost:7777
       firmware_versions : http://localhost:7777
       ota_history : http://localhost:7777
+      ota_file_settings: http://localhost:7777
       pill_key_store : http://localhost:7777
       ring_time_history: http://localhost:7777
       sense_key_store : http://localhost:7777

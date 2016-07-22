@@ -189,6 +189,7 @@ dynamodb:
     firmware_upgrade_path : fw_upgrade_path
     firmware_versions : firmware_versions_mapping
     ota_history : ota_history
+    ota_file_settings : ota_file_settings
     pill_key_store : pill_key_store
     ring_time_history: ring_time_history_by_account
     sense_key_store : key_store
@@ -204,6 +205,7 @@ dynamodb:
       firmware_upgrade_path : http://dynamodb.us-east-1.amazonaws.com
       firmware_versions : http://dynamodb.us-east-1.amazonaws.com
       ota_history : http://dynamodb.us-east-1.amazonaws.com
+      ota_file_settings : http://dynamodb.us-east-1.amazonaws.com
       pill_key_store : http://dynamodb.us-east-1.amazonaws.com
       ring_time_history: http://dynamodb.us-east-1.amazonaws.com
       sense_key_store : http://dynamodb.us-east-1.amazonaws.com

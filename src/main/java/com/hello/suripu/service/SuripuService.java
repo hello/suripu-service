@@ -1,8 +1,5 @@
 package com.hello.suripu.service;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -14,6 +11,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
@@ -30,6 +29,7 @@ import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.db.FileManifestDynamoDB;
 import com.hello.suripu.core.db.FirmwareUpgradePathDAO;
 import com.hello.suripu.core.db.FirmwareVersionMappingDAO;
+import com.hello.suripu.core.db.FirmwareVersionMappingDAODynamoDB;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.db.KeyStoreDynamoDB;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
@@ -41,6 +41,7 @@ import com.hello.suripu.core.db.TeamStore;
 import com.hello.suripu.core.db.util.JodaArgumentFactory;
 import com.hello.suripu.core.db.util.PostgresIntegerArrayArgumentFactory;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
+import com.hello.suripu.core.firmware.db.OTAFileSettingsDynamoDB;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
@@ -72,25 +73,9 @@ import com.hello.suripu.service.modules.RolloutModule;
 import com.hello.suripu.service.resources.AudioResource;
 import com.hello.suripu.service.resources.CheckResource;
 import com.hello.suripu.service.resources.LogsResource;
-import com.hello.suripu.service.resources.ProvisionResource;
 import com.hello.suripu.service.resources.ReceiveResource;
 import com.hello.suripu.service.resources.RegisterResource;
 import com.librato.rollout.RolloutClient;
-
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
-import org.joda.time.DateTimeZone;
-import org.skife.jdbi.v2.DBI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
-import java.util.EnumSet;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.FilterRegistration;
-
 import io.dropwizard.Application;
 import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.jdbi.OptionalContainerFactory;
@@ -98,6 +83,18 @@ import io.dropwizard.jdbi.bundles.DBIExceptionsBundle;
 import io.dropwizard.server.AbstractServerFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.joda.time.DateTimeZone;
+import org.skife.jdbi.v2.DBI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.servlet.DispatcherType;
+import javax.servlet.FilterRegistration;
+import java.net.InetSocketAddress;
+import java.util.EnumSet;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 public class SuripuService extends Application<SuripuConfiguration> {
 
@@ -166,11 +163,14 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AmazonDynamoDB otaHistoryDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.OTA_HISTORY);
         final OTAHistoryDAODynamoDB otaHistoryDAODynamoDB = new OTAHistoryDAODynamoDB(otaHistoryDynamoDBClient, tableNames.get(DynamoDBTableName.OTA_HISTORY));
 
+        final AmazonDynamoDB otaFileSettingsClient = dynamoDBFactory.getForTable(DynamoDBTableName.OTA_FILE_SETTINGS);
+        final OTAFileSettingsDynamoDB otaFileSettingsDynamoDB = OTAFileSettingsDynamoDB.create(otaFileSettingsClient, tableNames.get(DynamoDBTableName.OTA_FILE_SETTINGS), environment.getObjectMapper());
+
         final AmazonDynamoDB respCommandsDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.SYNC_RESPONSE_COMMANDS);
         final ResponseCommandsDAODynamoDB respCommandsDAODynamoDB = new ResponseCommandsDAODynamoDB(respCommandsDynamoDBClient, tableNames.get(DynamoDBTableName.SYNC_RESPONSE_COMMANDS));
 
         final AmazonDynamoDB fwVersionMapping = dynamoDBFactory.getForTable(DynamoDBTableName.FIRMWARE_VERSIONS);
-        final FirmwareVersionMappingDAO firmwareVersionMappingDAO = new FirmwareVersionMappingDAO(fwVersionMapping, tableNames.get(DynamoDBTableName.FIRMWARE_VERSIONS));
+        final FirmwareVersionMappingDAO firmwareVersionMappingDAO = new FirmwareVersionMappingDAODynamoDB(fwVersionMapping, tableNames.get(DynamoDBTableName.FIRMWARE_VERSIONS));
 
         final AmazonDynamoDB fwUpgradePathDynamoDB = dynamoDBFactory.getForTable(DynamoDBTableName.FIRMWARE_UPGRADE_PATH);
         final FirmwareUpgradePathDAO firmwareUpgradePathDAO = new FirmwareUpgradePathDAO(fwUpgradePathDynamoDB, tableNames.get(DynamoDBTableName.FIRMWARE_UPGRADE_PATH));
@@ -241,6 +241,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final FirmwareUpdateStore firmwareUpdateStore = FirmwareUpdateStore.create(
                 otaHistoryDAODynamoDB,
+                otaFileSettingsDynamoDB,
                 s3Client,
                 "hello-firmware",
                 amazonS3UrlSigner,
@@ -359,8 +360,6 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 configuration.getDebug(),
                 audioMetaDataLogger,
                 senseKeyStore));
-
-        environment.jersey().register(new ProvisionResource(senseKeyStore, groupFlipper));
 
         // Manage the lifecycle of our clients
         environment.lifecycle().manage(new DynamoDBClientManaged(senseKeyStoreDynamoDBClient));
