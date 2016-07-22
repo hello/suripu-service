@@ -11,6 +11,7 @@ import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
+import com.hello.suripu.core.firmware.SenseFirmwareUpdateQuery;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.models.Alarm;
@@ -21,16 +22,16 @@ import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.librato.rollout.RolloutClient;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.TimeZone;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.ws.rs.WebApplicationException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.TimeZone;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -457,7 +458,8 @@ public class ReceiveResourceIT extends ResourceTest {
     }
 
     private void stubGetPopulatedFirmwareFileListForGroup (final FirmwareUpdateStore firmwareUpdateStore, final String groupName, final String firmwareVersion, final List<OutputProtos.SyncResponse.FileDownload> fileList) {
-        doReturn(fileList).when(firmwareUpdateStore).getFirmwareUpdate(SENSE_ID, groupName, firmwareVersion, false);
+        final SenseFirmwareUpdateQuery query = SenseFirmwareUpdateQuery.forSenseOne(SENSE_ID, groupName, firmwareVersion);
+        doReturn(fileList).when(firmwareUpdateStore).getFirmwareUpdate(query);
     }
 
     private void stubGetGroups (final GroupFlipper groupFlipper, final List<String> groups) {

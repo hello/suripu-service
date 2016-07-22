@@ -6,7 +6,6 @@ import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SuripuService;
 import com.hello.suripu.service.resources.AudioResource;
 import com.hello.suripu.service.resources.CheckResource;
-import com.hello.suripu.service.resources.ProvisionResource;
 import com.hello.suripu.service.resources.ReceiveResource;
 import com.hello.suripu.service.resources.RegisterResource;
 import com.librato.rollout.RolloutAdapter;
@@ -21,7 +20,6 @@ import javax.inject.Singleton;
         AudioResource.class,
         RegisterResource.class,
         CheckResource.class,
-        ProvisionResource.class,
         BaseResource.class,
         SuripuService.class
 })
