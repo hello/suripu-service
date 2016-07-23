@@ -1,16 +1,15 @@
 package com.hello.suripu.service;
 
+import com.hello.suripu.core.firmware.HardwareVersion;
 import com.hello.suripu.core.models.TrackerMotion;
 import com.hello.suripu.core.util.HelloHttpHeader;
-
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
-
 import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedList;
 
 /**
  * Created by pangwu on 5/8/14.
@@ -60,5 +59,17 @@ public class Util {
             }
         }
         return FIRMWARE_DEFAULT;
+    }
+
+    public static HardwareVersion getHardwareVersionFromHeader(final HttpServletRequest request) {
+        final String maybeNull = request.getHeader("X-Hello-Sense-HV");
+        if(maybeNull != null) {
+            try {
+                return HardwareVersion.fromInt(Integer.parseInt(maybeNull));
+            } catch (IllegalArgumentException e) {
+                LOGGER.error("error=bad-hw-version header={}", maybeNull);
+            }
+        }
+        return HardwareVersion.SENSE_ONE;
     }
 }
