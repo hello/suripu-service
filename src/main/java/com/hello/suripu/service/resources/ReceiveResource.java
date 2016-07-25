@@ -193,6 +193,7 @@ public class ReceiveResource extends BaseResource {
 
         final String topFW = Util.getFWVersionFromHeader(this.request, HelloHttpHeader.TOP_FW_VERSION);
         final String middleFW = Util.getFWVersionFromHeader(this.request, HelloHttpHeader.MIDDLE_FW_VERSION);
+        final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
 
         LOGGER.debug("sense_id={}", debugSenseId);
         final String ipAddress = getIpAddress(request);
@@ -273,7 +274,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         final String tempSenseId = data.hasDeviceId() ? data.getDeviceId() : debugSenseId;
-        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress);
+        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress, hardwareVersion);
     }
 
 
@@ -487,7 +488,8 @@ public class ReceiveResource extends BaseResource {
                                         final byte[] encryptionKey,
                                         final DataInputProtos.batched_periodic_data batch,
                                         final List<UserInfo> userInfoList,
-                                        final String ipAddress) {
+                                        final String ipAddress,
+                                        final HardwareVersion hardwareVersion) {
         // TODO: Warning, since we query dynamoDB based on user input, the user can generate a lot of
         // requests to break our bank(Assume that Dynamo DB never goes down).
         // May be we should somehow cache these data to reduce load & cost.
@@ -635,7 +637,7 @@ public class ReceiveResource extends BaseResource {
 
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
                 //Perform all OTA checks and compute the update file list (if necessary)
-                final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, userTimeZone.get(), batch, userInfoList, deviceHasOutOfSyncClock);
+                final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, userTimeZone.get(), batch, userInfoList, deviceHasOutOfSyncClock, hardwareVersion);
                 if (!fileDownloadList.isEmpty()) {
                     if (shouldOverrideOTA(deviceName, groups)) {
                         LOGGER.warn("action=ota-override sense_id={}", deviceName);
@@ -672,7 +674,7 @@ public class ReceiveResource extends BaseResource {
         } else {
             LOGGER.error("error=no-timezone message=default-utc-for-ota sense_id={} ip_address={}", deviceName, ipAddress);
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
-                final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, DateTimeZone.UTC, batch, userInfoList, deviceHasOutOfSyncClock);
+                final List<OutputProtos.SyncResponse.FileDownload> fileDownloadList = computeOTAFileList(deviceName, groups, DateTimeZone.UTC, batch, userInfoList, deviceHasOutOfSyncClock, hardwareVersion);
                 if (!fileDownloadList.isEmpty()) {
                     if (shouldOverrideOTA(deviceName, groups)) {
                         LOGGER.info("action=ota_override sense_id={}", deviceName);
@@ -937,7 +939,8 @@ public class ReceiveResource extends BaseResource {
                                                                             final DateTimeZone userTimeZone,
                                                                             final DataInputProtos.batched_periodic_data batchData,
                                                                             final List<UserInfo> userInfoList,
-                                                                            final Boolean hasOutOfSyncClock) {
+                                                                            final Boolean hasOutOfSyncClock,
+                                                                            final HardwareVersion hardwareVersion) {
         final String currentFirmwareVersion = Integer.toString(batchData.getFirmwareVersion());
         final int uptimeInSeconds = (batchData.hasUptimeInSecond()) ? batchData.getUptimeInSecond() : -1;
         final DateTime currentDTZ = DateTime.now().withZone(userTimeZone);
@@ -947,10 +950,6 @@ public class ReceiveResource extends BaseResource {
         final Integer deviceUptimeDelay = otaConfiguration.getDeviceUptimeDelay();
         Boolean bypassOTAChecks = (featureFlipper.deviceFeatureActive(FeatureFlipper.BYPASS_OTA_CHECKS, deviceID, deviceGroups));
         final String ipAddress = getIpAddress(request);
-
-
-        // OTA SPECIAL CASES
-        final HardwareVersion hardwareVersion = HardwareVersion.SENSE_ONE;
 
         // Allow special handling for devices coming from factory on 0.9.22_rc7 with the clock sync issue
         if (hasOutOfSyncClock && currentFirmwareVersion.equals(FW_VERSION_0_9_22_RC7)) {
