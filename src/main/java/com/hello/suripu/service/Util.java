@@ -17,6 +17,7 @@ import java.util.LinkedList;
 public class Util {
     private static final Logger LOGGER = LoggerFactory.getLogger(Util.class);
     private static final String FIRMWARE_DEFAULT = "0";
+    public static final String HW_VERSION = "X-Hello-Sense-HW";
 
     public static double getAverageSVM(LinkedList<TrackerMotion> buffer){
         double average = 0.0;
@@ -62,12 +63,16 @@ public class Util {
     }
 
     public static HardwareVersion getHardwareVersionFromHeader(final HttpServletRequest request) {
-        final String maybeNull = request.getHeader("X-Hello-Sense-HV");
-        if(maybeNull != null) {
+        final String maybeNull = request.getHeader(HW_VERSION);
+        return getHardwareVersion(maybeNull);
+    }
+
+    public static HardwareVersion getHardwareVersion(final String maybeHardwareVersion) {
+        if(maybeHardwareVersion != null) {
             try {
-                return HardwareVersion.fromInt(Integer.parseInt(maybeNull));
+                return HardwareVersion.fromInt(Integer.parseInt(maybeHardwareVersion));
             } catch (IllegalArgumentException e) {
-                LOGGER.error("error=bad-hw-version header={}", maybeNull);
+                LOGGER.error("error=bad-hw-version header={}", maybeHardwareVersion);
             }
         }
         return HardwareVersion.SENSE_ONE;
