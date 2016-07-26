@@ -1009,14 +1009,14 @@ public class ReceiveResource extends BaseResource {
             if (!deviceGroups.isEmpty()) {
                 final String updateGroup = deviceGroups.get(0);
                 LOGGER.debug("DeviceId {} belongs to groups: {}", deviceID, deviceGroups);
-                final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSenseOne(deviceID, updateGroup, currentFirmwareVersion);
+                final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSense(deviceID, updateGroup, currentFirmwareVersion, hardwareVersion);
                 final FirmwareUpdate firmwareUpdate = firmwareUpdateStore.getFirmwareUpdate(senseFirmwareUpdateQuery);
                 return firmwareUpdate.files;
             } else {
                 // This feature flipper can disable OTA for all groups and all devices if set to 0%
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.OTA_RELEASE, deviceID, deviceGroups)) {
                     LOGGER.debug("Feature 'release' is active for device: {}", deviceID);
-                    final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSenseOne(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion);
+                    final SenseFirmwareUpdateQuery senseFirmwareUpdateQuery = SenseFirmwareUpdateQuery.forSense(deviceID, FeatureFlipper.OTA_RELEASE, currentFirmwareVersion, hardwareVersion);
                     final FirmwareUpdate firmwareUpdate = firmwareUpdateStore.getFirmwareUpdate(senseFirmwareUpdateQuery);
                     return firmwareUpdate.files;
                 }
