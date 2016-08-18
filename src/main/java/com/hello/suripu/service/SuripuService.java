@@ -6,6 +6,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.metrics.AwsSdkMetrics;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -47,6 +48,8 @@ import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
+import com.hello.suripu.core.swap.Swapper;
+import com.hello.suripu.core.swap.ddb.DynamoDBSwapper;
 import com.hello.suripu.coredw8.clients.AmazonDynamoDBClientFactory;
 import com.hello.suripu.coredw8.db.AccessTokenDAO;
 import com.hello.suripu.coredw8.db.AuthorizationCodeDAO;
@@ -70,6 +73,8 @@ import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.modules.RolloutModule;
+import com.hello.suripu.service.pairing.PillPairStateEvaluator;
+import com.hello.suripu.service.pairing.SensePairStateEvaluator;
 import com.hello.suripu.service.resources.AudioResource;
 import com.hello.suripu.service.resources.CheckResource;
 import com.hello.suripu.service.resources.LogsResource;
@@ -325,13 +330,29 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
 
         environment.jersey().register(receiveResource);
-        environment.jersey().register(new RegisterResource(deviceDAO,
-            tokenStore,
-            kinesisLoggerFactory,
-            senseKeyStore,
-            mergedUserInfoDynamoDB,
-            groupFlipper,
-            configuration.getDebug()));
+
+        final Swapper swapper = new DynamoDBSwapper(
+                deviceDAO,
+                new DynamoDB(mergedInfoDynamoDBClient),
+                tableNames.get(DynamoDBTableName.SWAP_INTENTS),
+                tableNames.get(DynamoDBTableName.ALARM_INFO)
+        );
+
+        final PillPairStateEvaluator pillPairStateEvaluator = new PillPairStateEvaluator(deviceDAO);
+        final SensePairStateEvaluator sensePairStateEvaluator = new SensePairStateEvaluator(deviceDAO);
+
+        final RegisterResource registerResource = new RegisterResource(deviceDAO,
+                tokenStore,
+                kinesisLoggerFactory,
+                senseKeyStore,
+                mergedUserInfoDynamoDB,
+                swapper,
+                groupFlipper,
+                pillPairStateEvaluator,
+                sensePairStateEvaluator
+        );
+
+        environment.jersey().register(registerResource);
 
 
         final FilterRegistration.Dynamic builder = environment.servlets().addFilter("slowRequestsFilter", SlowRequestsFilter.class);
