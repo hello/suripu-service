@@ -12,6 +12,7 @@ import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.db.KeyStoreDynamoDB;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
+import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
@@ -112,6 +113,11 @@ public class RegisterResource extends BaseResource {
             default:
                 return false;
         }
+    }
+
+    private boolean isPillPairingDebugMode(final String senseId) {
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        return featureFlipper.deviceFeatureActive(FeatureFlipper.DEBUG_MODE_PILL_PAIRING, senseId, groups);
     }
 
     protected final void setPillColor(final String senseId, final long accountId, final String pillId){
@@ -215,7 +221,7 @@ public class RegisterResource extends BaseResource {
             case PAIR_PILL:
                 pillId = deviceId;
                 final List<DeviceAccountPair> deviceAccountPairs = this.deviceDAO.getSensesForAccountId(accountId);
-                if(deviceAccountPairs.size() == 0){
+                if(deviceAccountPairs.isEmpty()){
                     final String errorMessage = String.format("No sense paired with account %d when pill %s tries to register",
                             accountId, pillId);
                     LOGGER.error(errorMessage);
@@ -292,7 +298,7 @@ public class RegisterResource extends BaseResource {
                 break;
                 case PAIR_PILL: {
                     LOGGER.warn("action=pair-pill pill_id={} account_id={}", pillId, accountId);
-                    final PillPairingRequest pillPairingRequest = PillPairingRequest.create(senseId, pillId, accountId, false);  // TODO: replace with feature flipper
+                    final PillPairingRequest pillPairingRequest = PillPairingRequest.create(senseId, pillId, accountId, isPillPairingDebugMode(senseId));
                     final PairState pairState = pillPairStateEvaluator.getPillPairingState(pillPairingRequest, onboardingLogger);
                     if (pairState == PairState.NOT_PAIRED) {
                         this.deviceDAO.registerPill(accountId, deviceId);
@@ -464,7 +470,7 @@ public class RegisterResource extends BaseResource {
 
         final Long accountId = accessTokenOptional.get().accountId;
         final List<DeviceAccountPair> deviceAccountPairs = this.deviceDAO.getSensesForAccountId(accountId);
-        if(deviceAccountPairs.size() == 0) {
+        if(deviceAccountPairs.isEmpty()) {
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 
