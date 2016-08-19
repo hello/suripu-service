@@ -1,4 +1,4 @@
-package com.hello.suripu.service.pairing;
+package com.hello.suripu.service.pairing.pill;
 
 public class PillPairingRequest {
 

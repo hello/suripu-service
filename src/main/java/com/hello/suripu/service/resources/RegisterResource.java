@@ -29,11 +29,11 @@ import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.pairing.PairState;
-import com.hello.suripu.service.pairing.PillPairStateEvaluator;
-import com.hello.suripu.service.pairing.PillPairingRequest;
-import com.hello.suripu.service.pairing.SensePairStateEvaluator;
-import com.hello.suripu.service.pairing.SensePairingRequest;
-import com.hello.suripu.service.utils.RegistrationLogger;
+import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
+import com.hello.suripu.service.pairing.pill.PillPairingRequest;
+import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
+import com.hello.suripu.service.pairing.sense.SensePairingRequest;
+import com.hello.suripu.service.utils.KinesisRegistrationLogger;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -147,7 +147,7 @@ public class RegisterResource extends BaseResource {
         final MorpheusCommand.Builder builder = MorpheusCommand.newBuilder()
                 .setVersion(PROTOBUF_VERSION);
         final DataLogger registrationLogger = kinesisLoggerFactory.get(QueueName.LOGS);
-        final RegistrationLogger onboardingLogger = RegistrationLogger.create(senseIdFromHeader,
+        final KinesisRegistrationLogger onboardingLogger = KinesisRegistrationLogger.create(senseIdFromHeader,
                 action,
                 ipAddress,
                 registrationLogger);

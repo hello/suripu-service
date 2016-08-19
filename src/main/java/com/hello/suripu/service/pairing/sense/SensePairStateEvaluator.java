@@ -1,7 +1,8 @@
-package com.hello.suripu.service.pairing;
+package com.hello.suripu.service.pairing.sense;
 
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.models.DeviceAccountPair;
+import com.hello.suripu.service.pairing.PairState;
 
 import java.util.List;
 

@@ -1,8 +1,9 @@
-package com.hello.suripu.service.pairing;
+package com.hello.suripu.service.pairing.pill;
 
 import com.google.common.base.Optional;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.models.DeviceAccountPair;
+import com.hello.suripu.service.pairing.PairState;
 import com.hello.suripu.service.utils.RegistrationLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,7 @@ public class PillPairStateEvaluator {
         this.deviceDAO = deviceDAO;
     }
 
-
-    public PairState getPillPairingState(final PillPairingRequest request, final RegistrationLogger onboardingLogger){
-        final List<DeviceAccountPair> pillsPairedToCurrentAccount = this.deviceDAO.getPillsForAccountId(request.accountId());
-        final List<DeviceAccountPair> accountsPairedToCurrentPill = this.deviceDAO.getLinkedAccountFromPillId(request.pillId());
+    public static PairState get(final PillPairingRequest request, List<DeviceAccountPair> pillsPairedToCurrentAccount, final List<DeviceAccountPair> accountsPairedToCurrentPill, final RegistrationLogger onboardingLogger) {
         if(pillsPairedToCurrentAccount.size() > 1){  // This account already paired with multiple pills
             LOGGER.warn("Account {} has already paired with multiple pills. pills paired {}, accounts paired {}",
                     request.accountId(),
@@ -94,6 +92,12 @@ public class PillPairStateEvaluator {
         onboardingLogger.logFailure(Optional.fromNullable(request.pillId()), errorMessage);
 
         return PairState.PAIRING_VIOLATION;
+    }
 
+    public PairState getPillPairingState(final PillPairingRequest request, final RegistrationLogger onboardingLogger) {
+        final List<DeviceAccountPair> pillsPairedToCurrentAccount = this.deviceDAO.getPillsForAccountId(request.accountId());
+        final List<DeviceAccountPair> accountsPairedToCurrentPill = this.deviceDAO.getLinkedAccountFromPillId(request.pillId());
+
+        return PillPairStateEvaluator.get(request, pillsPairedToCurrentAccount, accountsPairedToCurrentPill, onboardingLogger);
     }
 }
