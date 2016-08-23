@@ -2,14 +2,11 @@ package com.hello.suripu.service.configuration;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
+import io.dropwizard.Configuration;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-import java.util.Set;
-
-import io.dropwizard.Configuration;
 
 public class OTAConfiguration extends Configuration {
     private static final Integer DEFAULT_START_UPDATE_WINDOW_HOUR = 11;  // non peak periods start at 11:00:00
@@ -28,9 +25,6 @@ public class OTAConfiguration extends Configuration {
     
     @JsonProperty("device_uptime_delay")
     private Integer deviceUptimeDelay = DEFAULT_DEVICE_UPTIME_DELAY;
-
-    @JsonProperty("always_ota_groups")
-    private Set<String> alwaysOTAGroups;
     
     @JsonProperty("s3cache_expire_minutes")
     private Integer s3CacheExpireMinutes = DEFAULT_S3_CACHE_EXPIRE_MINUTES;
@@ -45,10 +39,6 @@ public class OTAConfiguration extends Configuration {
     
     public Integer getDeviceUptimeDelay() {
         return this.deviceUptimeDelay;
-    }
-
-    public Set<String> getAlwaysOTAGroups() {
-        return this.alwaysOTAGroups;
     }
 
     public Integer getS3CacheExpireMinutes() {
