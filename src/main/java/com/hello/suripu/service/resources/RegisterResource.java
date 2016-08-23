@@ -1,9 +1,8 @@
 package com.hello.suripu.service.resources;
 
-import com.google.common.base.Optional;
-
 import com.amazonaws.AmazonServiceException;
 import com.codahale.metrics.annotation.Timed;
+import com.google.common.base.Optional;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos.MorpheusCommand;
@@ -28,20 +27,19 @@ import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
-import com.hello.suripu.service.utils.RegistrationLogger;
+import com.hello.suripu.service.pairing.PairState;
+import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
+import com.hello.suripu.service.pairing.pill.PillPairingRequest;
+import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
+import com.hello.suripu.service.pairing.sense.SensePairingRequest;
+import com.hello.suripu.service.utils.KinesisRegistrationLogger;
+import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
-
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.awt.Color;
-import java.io.IOException;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -52,6 +50,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.awt.Color;
+import java.io.IOException;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
@@ -67,15 +70,9 @@ public class RegisterResource extends BaseResource {
     private final KinesisLoggerFactory kinesisLoggerFactory;
     private final KeyStore senseKeyStore;
     private final MergedUserInfoDynamoDB mergedUserInfoDynamoDB;
-
     private final static String UNKNOWN_SENSE_ID = "UNKNOWN";
-    private final Boolean debug;
-
-    protected enum PairState{
-        NOT_PAIRED,
-        PAIRED_WITH_CURRENT_ACCOUNT,
-        PAIRING_VIOLATION;
-    }
+    private final PillPairStateEvaluator pillPairStateEvaluator;
+    private final SensePairStateEvaluator sensePairStateEvaluator;
 
     @Context
     HttpServletRequest request;
@@ -91,15 +88,17 @@ public class RegisterResource extends BaseResource {
                             final KeyStore senseKeyStore,
                             final MergedUserInfoDynamoDB mergedUserInfoDynamoDB,
                             final GroupFlipper groupFlipper,
-                            final Boolean debug){
+                            final PillPairStateEvaluator pillPairStateEvaluator,
+                            final SensePairStateEvaluator sensePairStateEvaluator){
 
         this.deviceDAO = deviceDAO;
         this.tokenStore = tokenStore;
-        this.debug = debug;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
         this.senseKeyStore = senseKeyStore;
         this.mergedUserInfoDynamoDB = mergedUserInfoDynamoDB;
         this.groupFlipper = groupFlipper;
+        this.pillPairStateEvaluator = pillPairStateEvaluator;
+        this.sensePairStateEvaluator = sensePairStateEvaluator;
     }
 
     protected final boolean checkCommandType(final MorpheusCommand morpheusCommand, final PairAction action){
@@ -111,6 +110,16 @@ public class RegisterResource extends BaseResource {
             default:
                 return false;
         }
+    }
+
+    private boolean isPillPairingDebugMode(final String senseId) {
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        return featureFlipper.deviceFeatureActive(FeatureFlipper.DEBUG_MODE_PILL_PAIRING, senseId, groups);
+    }
+
+    private boolean isSensePairingSwapMode(final String senseId) {
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        return featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SENSE_SWAP_ENABLED.getFeatureName(), senseId, groups);
     }
 
     protected final void setPillColor(final String senseId, final long accountId, final String pillId){
@@ -128,100 +137,6 @@ public class RegisterResource extends BaseResource {
         }
     }
 
-    protected PairState getSensePairingState(final String senseId, final long accountId){
-        final List<DeviceAccountPair> pairedSense = this.deviceDAO.getSensesForAccountId(accountId);
-        if(pairedSense.size() > 1){  // This account already paired with multiple senses
-            return PairState.PAIRING_VIOLATION;
-        }
-
-        if(pairedSense.size() == 0){
-            return PairState.NOT_PAIRED;
-        }
-
-        if(pairedSense.get(0).externalDeviceId.equals(senseId)){
-            return PairState.PAIRED_WITH_CURRENT_ACCOUNT;  // only one sense, and it is current sense, firmware retry request
-        }else{
-            return PairState.PAIRING_VIOLATION;  // already paired with another one.
-        }
-    }
-
-    protected final PairState getPillPairingState(final String senseId, final String pillId, final long accountId, final RegistrationLogger onboardingLogger){
-        final List<DeviceAccountPair> pillsPairedToCurrentAccount = this.deviceDAO.getPillsForAccountId(accountId);
-        final List<DeviceAccountPair> accountsPairedToCurrentPill = this.deviceDAO.getLinkedAccountFromPillId(pillId);
-        if(pillsPairedToCurrentAccount.size() > 1){  // This account already paired with multiple pills
-            LOGGER.warn("Account {} has already paired with multiple pills. pills paired {}, accounts paired {}",
-                    accountId,
-                    pillsPairedToCurrentAccount.size(),
-                    accountsPairedToCurrentPill.size());
-            return PairState.PAIRING_VIOLATION;
-        }
-
-        if(accountsPairedToCurrentPill.size() == 0 && pillsPairedToCurrentAccount.size() == 0){
-            return PairState.NOT_PAIRED;
-        }
-
-        if(accountsPairedToCurrentPill.size() == 1 && pillsPairedToCurrentAccount.size() == 1 && pillsPairedToCurrentAccount.get(0).externalDeviceId.equals(pillId)){
-            // might be a firmware retry
-            return PairState.PAIRED_WITH_CURRENT_ACCOUNT;
-        }
-
-        final List<String> groups = groupFlipper.getGroups(senseId);
-        if(featureFlipper.deviceFeatureActive(FeatureFlipper.DEBUG_MODE_PILL_PAIRING, senseId, groups)) {
-            LOGGER.info("Debug mode for pairing pill {} to sense {}.", pillId, senseId);
-            if(pillsPairedToCurrentAccount.size() == 0 /* && accountsPairedToCurrentPill.size() >= 0 */ /* 2nd condition actually not needed */){
-                return PairState.NOT_PAIRED;
-            }else{
-                for(final DeviceAccountPair pill:pillsPairedToCurrentAccount){
-                    if(pill.externalDeviceId.equals(pillId)){
-                        return PairState.PAIRED_WITH_CURRENT_ACCOUNT;
-                    }
-                }
-                final String errorMessage = String.format("Account %d already paired with %d pills.", accountId, pillsPairedToCurrentAccount.size());
-                LOGGER.error(errorMessage);
-                onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
-                return PairState.PAIRING_VIOLATION;
-            }
-        }
-
-        if(accountsPairedToCurrentPill.size() > 1){
-            final String errorMessage = String.format("Account %d already paired with multiple pills. pills paired %d, accounts paired %d",
-                    accountId,
-                    pillsPairedToCurrentAccount.size(),
-                    accountsPairedToCurrentPill.size());
-            LOGGER.warn(errorMessage);
-            onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
-            return PairState.PAIRING_VIOLATION;
-        }
-
-        // else:
-        if(accountsPairedToCurrentPill.size() == 1 && pillsPairedToCurrentAccount.size() == 0){
-            // pill already paired with an account, but this account is new, stolen pill?
-            final String errorMessage  = String.format("Pill %s might got stolen, account %d is a theft!", pillId, accountId);
-            LOGGER.error(errorMessage);
-            onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
-        }
-        if(pillsPairedToCurrentAccount.size() == 1 && accountsPairedToCurrentPill.size() == 0){
-            // account already paired with a pill, only one pill is allowed
-            final String errorMessage = String.format("Account %d already paired with pill %s. Pill %s cannot pair to this account",
-                    accountId,
-                    pillsPairedToCurrentAccount.get(0).externalDeviceId,
-                    pillId);
-            LOGGER.error(errorMessage);
-            onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
-
-        }
-
-        final String errorMessage = String.format("Paired failed for account %d. pills paired %d, accounts paired %d",
-                accountId,
-                pillsPairedToCurrentAccount.size(),
-                accountsPairedToCurrentPill.size());
-        LOGGER.warn(errorMessage);
-        onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
-
-        return PairState.PAIRING_VIOLATION;
-
-    }
-
     private final Optional<AccessToken> getClientDetailsByToken(final ClientCredentials credentials, final DateTime now) {
         try {
             return this.tokenStore.getTokenByClientCredentials(credentials, now);
@@ -234,7 +149,7 @@ public class RegisterResource extends BaseResource {
         final MorpheusCommand.Builder builder = MorpheusCommand.newBuilder()
                 .setVersion(PROTOBUF_VERSION);
         final DataLogger registrationLogger = kinesisLoggerFactory.get(QueueName.LOGS);
-        final RegistrationLogger onboardingLogger = RegistrationLogger.create(senseIdFromHeader,
+        final KinesisRegistrationLogger onboardingLogger = KinesisRegistrationLogger.create(senseIdFromHeader,
                 action,
                 ipAddress,
                 registrationLogger);
@@ -308,7 +223,7 @@ public class RegisterResource extends BaseResource {
             case PAIR_PILL:
                 pillId = deviceId;
                 final List<DeviceAccountPair> deviceAccountPairs = this.deviceDAO.getSensesForAccountId(accountId);
-                if(deviceAccountPairs.size() == 0){
+                if(deviceAccountPairs.isEmpty()){
                     final String errorMessage = String.format("No sense paired with account %d when pill %s tries to register",
                             accountId, pillId);
                     LOGGER.error(errorMessage);
@@ -359,7 +274,9 @@ public class RegisterResource extends BaseResource {
         try {
             switch (action){
                 case PAIR_MORPHEUS: {
-                    final PairState pairState = getSensePairingState(senseId, accountId);
+
+                    final SensePairingRequest sensePairingRequest = SensePairingRequest.create(accountId, senseId, isSensePairingSwapMode(senseId));
+                    final PairState pairState = sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(sensePairingRequest);
                     if (pairState == PairState.NOT_PAIRED) {
                         this.deviceDAO.registerSense(accountId, senseId);
                         onboardingLogger.logSuccess(Optional.<String>absent(),
@@ -385,7 +302,8 @@ public class RegisterResource extends BaseResource {
                 break;
                 case PAIR_PILL: {
                     LOGGER.warn("action=pair-pill pill_id={} account_id={}", pillId, accountId);
-                    final PairState pairState = getPillPairingState(senseId, pillId, accountId, onboardingLogger);
+                    final PillPairingRequest pillPairingRequest = PillPairingRequest.create(senseId, pillId, accountId, isPillPairingDebugMode(senseId));
+                    final PairState pairState = pillPairStateEvaluator.getPillPairingState(pillPairingRequest, onboardingLogger);
                     if (pairState == PairState.NOT_PAIRED) {
                         this.deviceDAO.registerPill(accountId, deviceId);
                         final String message = String.format("Linked pill %s to account %d in DB", pillId, accountId);
@@ -556,7 +474,7 @@ public class RegisterResource extends BaseResource {
 
         final Long accountId = accessTokenOptional.get().accountId;
         final List<DeviceAccountPair> deviceAccountPairs = this.deviceDAO.getSensesForAccountId(accountId);
-        if(deviceAccountPairs.size() == 0) {
+        if(deviceAccountPairs.isEmpty()) {
             return plainTextError(Response.Status.BAD_REQUEST, "");
         }
 

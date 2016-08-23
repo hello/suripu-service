@@ -14,19 +14,19 @@ import static org.hamcrest.Matchers.is;
 /**
  * Created by pangwu on 5/4/15.
  */
-public class RegistrationLoggerTest {
+public class KinesisRegistrationLoggerTest {
     private static final String testSenseId = "test sense";
 
 
 
-    private RegistrationLogger writeALog(final RegistrationLogger logger){
+    private KinesisRegistrationLogger writeALog(final KinesisRegistrationLogger logger){
         logger.logProgress(Optional.<String>absent(), "test started");
         return logger;
     }
 
     private void testException(final Exception exception){
         final DataLogger dataLogger = DataLoggerTestHelper.mockDataLogger();
-        final RegistrationLogger logger = RegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
+        final KinesisRegistrationLogger logger = KinesisRegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
 
         writeALog(logger);
         DataLoggerTestHelper.stubPutAnyException(dataLogger, testSenseId,
@@ -53,13 +53,13 @@ public class RegistrationLoggerTest {
     @Test
     public void testCommit(){
         final DataLogger dataLogger = DataLoggerTestHelper.mockDataLogger();
-        final RegistrationLogger logger = RegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
+        final KinesisRegistrationLogger logger = KinesisRegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
         writeALog(logger);
         DataLoggerTestHelper.stubPut(dataLogger, testSenseId, logger.toByteArray(), "");
         assertThat(logger.commit(), is(true));
     }
 
-    private RegistrationLogger writeMoreThan20KToLogger(final RegistrationLogger logger){
+    private KinesisRegistrationLogger writeMoreThan20KToLogger(final KinesisRegistrationLogger logger){
         for(int i = 0; i < 2048 * 10; i++) {
             writeALog(logger);
         }
@@ -69,7 +69,7 @@ public class RegistrationLoggerTest {
     @Test
     public void testCommitLogMessageTooLarge(){
         final DataLogger dataLogger = DataLoggerTestHelper.mockDataLogger();
-        final RegistrationLogger logger = RegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
+        final KinesisRegistrationLogger logger = KinesisRegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
         writeMoreThan20KToLogger(logger);
         DataLoggerTestHelper.stubPut(dataLogger, testSenseId, logger.toByteArray(), "");
         assertThat(logger.commit(), is(false));
@@ -78,7 +78,7 @@ public class RegistrationLoggerTest {
     @Test
     public void testStartItemIs1MillisEarlier(){
         final DataLogger dataLogger = DataLoggerTestHelper.mockDataLogger();
-        final RegistrationLogger logger = RegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
+        final KinesisRegistrationLogger logger = KinesisRegistrationLogger.create(testSenseId, PairAction.PAIR_MORPHEUS, "127.0.0.1", dataLogger);
         writeALog(logger);  // trigger the start write
         final byte[] bytes = logger.toByteArray();
         try {

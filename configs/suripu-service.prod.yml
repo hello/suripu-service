@@ -199,6 +199,7 @@ dynamodb:
     teams : teams
     calibration: prod_calibration
     sense_state: prod_sense_state
+    swap_intents: prod_swap_intents
     file_manifest: prod_file_manifest
 
   endpoints:
@@ -215,4 +216,5 @@ dynamodb:
       teams : http://dynamodb.us-east-1.amazonaws.com
       calibration : http://dynamodb.us-east-1.amazonaws.com
       sense_state: http://dynamodb.us-east-1.amazonaws.com
+      swap_intents: http://dynamodb.us-east-1.amazonaws.com
       file_manifest: http://dynamodb.us-east-1.amazonaws.com

@@ -2,7 +2,6 @@ package com.hello.suripu.service.resources;
 
 import com.google.common.base.Optional;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.oauth.ClientCredentials;
@@ -10,29 +9,28 @@ import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
 import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
+import com.hello.suripu.core.swap.Swapper;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.service.SignedMessage;
-
+import com.hello.suripu.service.pairing.PairState;
+import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
+import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
+import com.hello.suripu.service.pairing.sense.SensePairingRequest;
 import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.UUID;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import java.util.Arrays;
+import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Created by pangwu on 5/5/15.
@@ -43,6 +41,9 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     private static final String ACCESS_TOKEN = "test access token";
     private static final byte[] KEY = "1234567891234567".getBytes();
     private RegisterResource registerResource;
+    private PillPairStateEvaluator pillPairStateEvaluator;
+    private SensePairStateEvaluator sensePairStateEvaluator;
+    private Swapper swapper;
 
     private Optional<AccessToken> stubGetClientDetailsByToken(final OAuthTokenStore<AccessToken, ClientDetails, ClientCredentials> tokenStore) {
         try {
@@ -63,10 +64,6 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
 
     private AccessToken getAccessToken(){
         return new AccessToken(UUID.randomUUID(), UUID.randomUUID(), 0L, 0L, DateTime.now(), 1L, 1L, new OAuthScope[]{ OAuthScope.AUTH });
-    }
-
-    private void stubGetSensePairingState(final RegisterResource registerResource, final RegisterResource.PairState returnValue){
-        doReturn(returnValue).when(registerResource).getSensePairingState(SENSE_ID, 1L);
     }
 
     private byte[] generateInvalidEncryptedMessage(){
@@ -146,13 +143,19 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
         BaseResourceTestHelper.kinesisLoggerFactoryStubGet(this.kinesisLoggerFactory, QueueName.LOGS, this.dataLogger);
         BaseResourceTestHelper.kinesisLoggerFactoryStubGet(this.kinesisLoggerFactory, QueueName.REGISTRATIONS, this.dataLogger);
 
+        pillPairStateEvaluator = mock(PillPairStateEvaluator.class);
+        sensePairStateEvaluator = mock(SensePairStateEvaluator.class);
+        swapper = mock(Swapper.class);
+
         final RegisterResource registerResource = new RegisterResource(deviceDAO,
                 oAuthTokenStore,
                 kinesisLoggerFactory,
                 keyStore,
                 mergedUserInfoDynamoDB,
                 groupFlipper,
-                true);
+                pillPairStateEvaluator,
+                sensePairStateEvaluator
+                );
         registerResource.request = httpServletRequest;
         this.registerResource = spy(registerResource);  // the registerResource is a real object, we need to spy it.
 
@@ -229,8 +232,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testPairSense(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        stubGetSensePairingState(this.registerResource, RegisterResource.PairState.NOT_PAIRED);
-
+        when(sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(any(SensePairingRequest.class))).thenReturn(PairState.NOT_PAIRED);
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
@@ -246,7 +248,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testRegisterSense(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        stubGetSensePairingState(this.registerResource, RegisterResource.PairState.NOT_PAIRED);
+        when(sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(any(SensePairingRequest.class))).thenReturn(PairState.NOT_PAIRED);
         BaseResourceTestHelper.stubGetHeader(this.httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
 
         final byte[] data = this.registerResource.registerMorpheus(generateValidProtobufWithSignature(KEY));
@@ -272,8 +274,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testPairAlreadyPairedSense(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        stubGetSensePairingState(this.registerResource, RegisterResource.PairState.PAIRED_WITH_CURRENT_ACCOUNT);
-
+        when(sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(any(SensePairingRequest.class))).thenReturn(PairState.PAIRED_WITH_CURRENT_ACCOUNT);
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
@@ -289,7 +290,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testPairAlreadyPairedSenseToDifferentAccount(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        stubGetSensePairingState(this.registerResource, RegisterResource.PairState.PAIRING_VIOLATION);
+        when(sensePairStateEvaluator.getSensePairingState(any(SensePairingRequest.class))).thenReturn(PairState.PAIRING_VIOLATION);
 
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
