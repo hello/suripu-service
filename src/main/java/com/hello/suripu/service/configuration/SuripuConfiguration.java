@@ -67,12 +67,6 @@ public class SuripuConfiguration extends Configuration {
         return kinesisConfiguration;
     }
 
-    @JsonProperty("room_conditions")
-    private Integer roomConditions;
-    public Integer getRoomConditions() {
-        return roomConditions;
-    }
-
     @JsonProperty("sense_upload_configuration")
     private SenseUploadConfiguration senseUploadConfiguration;
     public SenseUploadConfiguration getSenseUploadConfiguration() { return this.senseUploadConfiguration; }
