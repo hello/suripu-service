@@ -206,6 +206,7 @@ dynamodb:
     teams : teams
     calibration: calibration
     sense_state: sense_state
+    swap_intents: swap_intents
     file_manifest: file_manifest
 
   endpoints:
@@ -222,4 +223,5 @@ dynamodb:
       teams : http://localhost:7777
       calibration: http://localhost:7777
       sense_state: http://localhost:7777
+      swap_intents: http://localhost:7777
       file_manifest: http://localhost:7777
