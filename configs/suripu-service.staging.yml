@@ -185,7 +185,9 @@ dynamodb:
   region: us-east-1
   tables:
     alarm_info : alarm_info
+    calibration: calibration
     features : features
+    file_manifest: file_manifest
     firmware_upgrade_path : fw_upgrade_path
     firmware_versions : firmware_versions_mapping
     ota_history : ota_history
@@ -193,16 +195,17 @@ dynamodb:
     pill_key_store : pill_key_store
     ring_time_history: ring_time_history_by_account
     sense_key_store : key_store
-    sync_response_commands : response_commands
-    teams : teams
-    calibration: calibration
     sense_state: sense_state
     swap_intents: swap_intents
-    file_manifest: file_manifest
+    sync_response_commands : response_commands
+    teams : teams
+
 
   endpoints:
       alarm_info : http://dynamodb.us-east-1.amazonaws.com
+      calibration: http://dynamodb.us-east-1.amazonaws.com
       features : http://dynamodb.us-east-1.amazonaws.com
+      file_manifest: http://dynamodb.us-east-1.amazonaws.com
       firmware_upgrade_path : http://dynamodb.us-east-1.amazonaws.com
       firmware_versions : http://dynamodb.us-east-1.amazonaws.com
       ota_history : http://dynamodb.us-east-1.amazonaws.com
@@ -210,9 +213,7 @@ dynamodb:
       pill_key_store : http://dynamodb.us-east-1.amazonaws.com
       ring_time_history: http://dynamodb.us-east-1.amazonaws.com
       sense_key_store : http://dynamodb.us-east-1.amazonaws.com
-      sync_response_commands : http://dynamodb.us-east-1.amazonaws.com
-      teams : http://dynamodb.us-east-1.amazonaws.com
-      calibration: http://dynamodb.us-east-1.amazonaws.com
       sense_state: http://dynamodb.us-east-1.amazonaws.com
       swap_intents: http://dynamodb.us-east-1.amazonaws.com
-      file_manifest: http://dynamodb.us-east-1.amazonaws.com
+      sync_response_commands : http://dynamodb.us-east-1.amazonaws.com
+      teams : http://dynamodb.us-east-1.amazonaws.com
