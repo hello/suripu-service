@@ -339,14 +339,13 @@ public class SuripuService extends Application<SuripuConfiguration> {
         );
 
         final PillPairStateEvaluator pillPairStateEvaluator = new PillPairStateEvaluator(deviceDAO);
-        final SensePairStateEvaluator sensePairStateEvaluator = new SensePairStateEvaluator(deviceDAO);
+        final SensePairStateEvaluator sensePairStateEvaluator = new SensePairStateEvaluator(deviceDAO, swapper);
 
         final RegisterResource registerResource = new RegisterResource(deviceDAO,
                 tokenStore,
                 kinesisLoggerFactory,
                 senseKeyStore,
                 mergedUserInfoDynamoDB,
-                swapper,
                 groupFlipper,
                 pillPairStateEvaluator,
                 sensePairStateEvaluator

@@ -22,7 +22,6 @@ import com.hello.suripu.core.oauth.ClientDetails;
 import com.hello.suripu.core.oauth.MissingRequiredScopeException;
 import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
-import com.hello.suripu.core.swap.Swapper;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.coredw8.oauth.AccessToken;
@@ -34,6 +33,7 @@ import com.hello.suripu.service.pairing.pill.PillPairingRequest;
 import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
 import com.hello.suripu.service.pairing.sense.SensePairingRequest;
 import com.hello.suripu.service.utils.KinesisRegistrationLogger;
+import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -70,7 +70,6 @@ public class RegisterResource extends BaseResource {
     private final KinesisLoggerFactory kinesisLoggerFactory;
     private final KeyStore senseKeyStore;
     private final MergedUserInfoDynamoDB mergedUserInfoDynamoDB;
-    private final Swapper swapper;
     private final static String UNKNOWN_SENSE_ID = "UNKNOWN";
     private final PillPairStateEvaluator pillPairStateEvaluator;
     private final SensePairStateEvaluator sensePairStateEvaluator;
@@ -88,14 +87,12 @@ public class RegisterResource extends BaseResource {
                             final KinesisLoggerFactory kinesisLoggerFactory,
                             final KeyStore senseKeyStore,
                             final MergedUserInfoDynamoDB mergedUserInfoDynamoDB,
-                            final Swapper swapper,
                             final GroupFlipper groupFlipper,
                             final PillPairStateEvaluator pillPairStateEvaluator,
                             final SensePairStateEvaluator sensePairStateEvaluator){
 
         this.deviceDAO = deviceDAO;
         this.tokenStore = tokenStore;
-        this.swapper = swapper;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
         this.senseKeyStore = senseKeyStore;
         this.mergedUserInfoDynamoDB = mergedUserInfoDynamoDB;
@@ -118,6 +115,11 @@ public class RegisterResource extends BaseResource {
     private boolean isPillPairingDebugMode(final String senseId) {
         final List<String> groups = groupFlipper.getGroups(senseId);
         return featureFlipper.deviceFeatureActive(FeatureFlipper.DEBUG_MODE_PILL_PAIRING, senseId, groups);
+    }
+
+    private boolean isSensePairingSwapMode(final String senseId) {
+        final List<String> groups = groupFlipper.getGroups(senseId);
+        return featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SENSE_SWAP_ENABLED.getFeatureName(), senseId, groups);
     }
 
     protected final void setPillColor(final String senseId, final long accountId, final String pillId){
@@ -272,7 +274,9 @@ public class RegisterResource extends BaseResource {
         try {
             switch (action){
                 case PAIR_MORPHEUS: {
-                    final PairState pairState = sensePairStateEvaluator.getSensePairingState(SensePairingRequest.create(accountId, senseId));
+
+                    final SensePairingRequest sensePairingRequest = SensePairingRequest.create(accountId, senseId, isSensePairingSwapMode(senseId));
+                    final PairState pairState = sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(sensePairingRequest);
                     if (pairState == PairState.NOT_PAIRED) {
                         this.deviceDAO.registerSense(accountId, senseId);
                         onboardingLogger.logSuccess(Optional.<String>absent(),

@@ -152,7 +152,6 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
                 kinesisLoggerFactory,
                 keyStore,
                 mergedUserInfoDynamoDB,
-                swapper,
                 groupFlipper,
                 pillPairStateEvaluator,
                 sensePairStateEvaluator
@@ -233,7 +232,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testPairSense(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        when(sensePairStateEvaluator.getSensePairingState(any(SensePairingRequest.class))).thenReturn(PairState.NOT_PAIRED);
+        when(sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(any(SensePairingRequest.class))).thenReturn(PairState.NOT_PAIRED);
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
@@ -249,7 +248,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testRegisterSense(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        when(sensePairStateEvaluator.getSensePairingState(any(SensePairingRequest.class))).thenReturn(PairState.NOT_PAIRED);
+        when(sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(any(SensePairingRequest.class))).thenReturn(PairState.NOT_PAIRED);
         BaseResourceTestHelper.stubGetHeader(this.httpServletRequest, HelloHttpHeader.SENSE_ID, SENSE_ID);
 
         final byte[] data = this.registerResource.registerMorpheus(generateValidProtobufWithSignature(KEY));
@@ -275,7 +274,7 @@ public class RegisterResourceIntegrationTest extends ResourceTest {
     public void testPairAlreadyPairedSense(){
         stubGetClientDetails(this.oAuthTokenStore, Optional.of(getAccessToken()));
         BaseResourceTestHelper.stubKeyFromKeyStore(this.keyStore, SENSE_ID, Optional.of(KEY));
-        when(sensePairStateEvaluator.getSensePairingState(any(SensePairingRequest.class))).thenReturn(PairState.PAIRED_WITH_CURRENT_ACCOUNT);
+        when(sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(any(SensePairingRequest.class))).thenReturn(PairState.PAIRED_WITH_CURRENT_ACCOUNT);
         final SenseCommandProtos.MorpheusCommand command = this.registerResource.pair(SENSE_ID,
                 generateValidProtobufWithSignature(KEY),
                 this.keyStore,
