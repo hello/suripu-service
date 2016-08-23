@@ -118,12 +118,6 @@ ota_configuration:
   device_uptime_delay: 60
   s3cache_expire_minutes: 20
 
-kinesis_logger:
-  stream_name: logs
-  enabled : true
-  buffer_size: 100
-  origin: suripu-service
-
 aws_metric_namespace: suripu-service
 dynamo_client_configuration:
   max_connections: 100

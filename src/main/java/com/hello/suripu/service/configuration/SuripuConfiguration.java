@@ -71,12 +71,6 @@ public class SuripuConfiguration extends Configuration {
     private SenseUploadConfiguration senseUploadConfiguration;
     public SenseUploadConfiguration getSenseUploadConfiguration() { return this.senseUploadConfiguration; }
 
-    @JsonProperty("kinesis_logger")
-    private KinesisLoggerConfiguration kinesisLoggerConfiguration;
-    public KinesisLoggerConfiguration kinesisLoggerConfiguration() {
-        return kinesisLoggerConfiguration;
-    }
-
     @JsonProperty("ota_configuration")
     private OTAConfiguration otaConfiguration;
     public OTAConfiguration getOTAConfiguration() { return this.otaConfiguration; }
