@@ -5,8 +5,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.models.DeviceAccountPair;
-import com.hello.suripu.core.swap.SwapIntent;
-import com.hello.suripu.core.swap.SwapResult;
+import com.hello.suripu.core.swap.Intent;
+import com.hello.suripu.core.swap.Result;
 import com.hello.suripu.core.swap.Swapper;
 import com.hello.suripu.service.pairing.PairState;
 import org.joda.time.DateTime;
@@ -88,7 +88,7 @@ public class SensePairStateEvaluatorTest {
     public void testUserHasNoSwap() {
 
         final SensePairingRequest request = SensePairingRequest.create(99L, "abc");
-        when(swapper.query(request.senseId())).thenReturn(Optional.<SwapIntent>absent());
+        when(swapper.query(request.senseId())).thenReturn(Optional.<Intent>absent());
         final DeviceAccountPair pair = new DeviceAccountPair(
                 request.accountId(),
                 0L,
@@ -105,9 +105,9 @@ public class SensePairStateEvaluatorTest {
 
         // TODO: this is a useless test for now
         final SensePairingRequest request = SensePairingRequest.create(99L, "abc", true);
-        final SwapIntent intent = SwapIntent.create(request.senseId(), "old", request.accountId());
+        final Intent intent = Intent.create(request.senseId(), "old", request.accountId());
         when(swapper.query(request.senseId())).thenReturn(Optional.of(intent));
-        when(swapper.swap(intent)).thenReturn(SwapResult.success());
+        when(swapper.swap(intent)).thenReturn(Result.success());
         final DeviceAccountPair pair = new DeviceAccountPair(
                 request.accountId(),
                 0L,
