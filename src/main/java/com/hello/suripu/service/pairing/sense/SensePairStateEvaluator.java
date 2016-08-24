@@ -3,8 +3,8 @@ package com.hello.suripu.service.pairing.sense;
 import com.google.common.base.Optional;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.models.DeviceAccountPair;
-import com.hello.suripu.core.swap.SwapIntent;
-import com.hello.suripu.core.swap.SwapResult;
+import com.hello.suripu.core.swap.Intent;
+import com.hello.suripu.core.swap.Result;
 import com.hello.suripu.core.swap.Swapper;
 import com.hello.suripu.service.pairing.PairState;
 import org.slf4j.Logger;
@@ -49,17 +49,17 @@ public class SensePairStateEvaluator {
         }
 
         LOGGER.info("action=sense-swap sense_id={} account_id={}", request.senseId(), request.accountId());
-        final Optional<SwapIntent> swapIntent = swapper.query(request.senseId());
+        final Optional<Intent> swapIntent = swapper.query(request.senseId());
         if(!swapIntent.isPresent()) {
             return getSensePairingState(request);
         }
-        final SwapIntent intent = swapIntent.get();
+        final Intent intent = swapIntent.get();
         if(!intent.accountId().equals(request.accountId())) {
             LOGGER.error("action=sense-swap error=account-id-mismatch intent_account_id={} pair_account_id={}",
                     intent.accountId(), request.accountId()
             );
         }
-        final SwapResult swapResult = swapper.swap(intent);
+        final Result swapResult = swapper.swap(intent);
         if(swapResult.successful()) {
             return PairState.PAIRED_WITH_CURRENT_ACCOUNT;
         }
