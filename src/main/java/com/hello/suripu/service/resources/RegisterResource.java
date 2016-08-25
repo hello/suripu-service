@@ -12,6 +12,7 @@ import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.db.KeyStoreDynamoDB;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
+import com.hello.suripu.core.firmware.HardwareVersion;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
@@ -27,6 +28,8 @@ import com.hello.suripu.core.util.PairAction;
 import com.hello.suripu.coredw8.oauth.AccessToken;
 import com.hello.suripu.coredw8.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.Util;
+import com.hello.suripu.service.pairing.GenericPairRequest;
 import com.hello.suripu.service.pairing.PairState;
 import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
 import com.hello.suripu.service.pairing.pill.PillPairingRequest;
@@ -145,20 +148,20 @@ public class RegisterResource extends BaseResource {
         }
     }
 
-    protected final MorpheusCommand.Builder pair(final String senseIdFromHeader, final byte[] encryptedRequest, final KeyStore keyStore, final PairAction action, final String ipAddress) {
+    protected final MorpheusCommand.Builder pair(final GenericPairRequest pairRequest) {
         final MorpheusCommand.Builder builder = MorpheusCommand.newBuilder()
                 .setVersion(PROTOBUF_VERSION);
         final DataLogger registrationLogger = kinesisLoggerFactory.get(QueueName.LOGS);
-        final KinesisRegistrationLogger onboardingLogger = KinesisRegistrationLogger.create(senseIdFromHeader,
-                action,
-                ipAddress,
+        final KinesisRegistrationLogger onboardingLogger = KinesisRegistrationLogger.create(pairRequest.senseId(),
+                pairRequest.pairAction(),
+                pairRequest.ipAddress(),
                 registrationLogger);
 
         MorpheusCommand morpheusCommand = MorpheusCommand.getDefaultInstance();
         SignedMessage signedMessage = null;
 
         try {
-            signedMessage = SignedMessage.parse(encryptedRequest);  // This call will throw
+            signedMessage = SignedMessage.parse(pairRequest.encryptedRequest());  // This call will throw
             morpheusCommand = MorpheusCommand.parseFrom(signedMessage.body);
         } catch (IOException exception) {
             final String errorMessage = String.format("Failed parsing protobuf: %s", exception.getMessage());
@@ -215,7 +218,7 @@ public class RegisterResource extends BaseResource {
         // MUST BE CLEARED when the buffer is returned to Sense
         builder.setAccountId(token);
 
-        switch (action) {
+        switch (pairRequest.pairAction()) {
             case PAIR_MORPHEUS:
                 senseId = deviceId;
                 onboardingLogger.setSenseId(senseId);  // We need this until the provision problem got fixed.
@@ -239,7 +242,7 @@ public class RegisterResource extends BaseResource {
                 break;
         }
 
-        final Optional<byte[]> keyBytesOptional = keyStore.get(senseId);
+        final Optional<byte[]> keyBytesOptional = pairRequest.keyStore().get(senseId);
         if(!keyBytesOptional.isPresent()) {
             final String errorMessage = String.format("Missing AES key for device = %s", senseId);
             LOGGER.error(errorMessage);
@@ -258,7 +261,7 @@ public class RegisterResource extends BaseResource {
             throwPlainTextError(Response.Status.UNAUTHORIZED, "invalid signature");
         }
 
-        if(!checkCommandType(morpheusCommand, action)){
+        if(!checkCommandType(morpheusCommand, pairRequest.pairAction())){
             builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
             builder.setError(SenseCommandProtos.ErrorType.INTERNAL_DATA_ERROR);
 
@@ -272,10 +275,10 @@ public class RegisterResource extends BaseResource {
         }
 
         try {
-            switch (action){
+            switch (pairRequest.pairAction()){
                 case PAIR_MORPHEUS: {
 
-                    final SensePairingRequest sensePairingRequest = SensePairingRequest.create(accountId, senseId, isSensePairingSwapMode(senseId));
+                    final SensePairingRequest sensePairingRequest = SensePairingRequest.create(accountId, senseId, isSensePairingSwapMode(senseId), pairRequest.senseHardwareVersion());
                     final PairState pairState = sensePairStateEvaluator.getSensePairingStateAndMaybeSwap(sensePairingRequest);
                     if (pairState == PairState.NOT_PAIRED) {
                         this.deviceDAO.registerSense(accountId, senseId);
@@ -292,7 +295,7 @@ public class RegisterResource extends BaseResource {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_PAIR_SENSE);
                     } else {
                         final String errorMessage = String.format("Account %d tries to pair multiple senses", accountId);
-                        LOGGER.error("error=pair-multiple-sense sense_id={} account_id={} ip_address={}", senseId, accountId, ipAddress);
+                        LOGGER.error("error=pair-multiple-sense sense_id={} account_id={} ip_address={}", senseId, accountId, pairRequest.ipAddress());
                         onboardingLogger.logFailure(Optional.fromNullable(pillId), errorMessage);
 
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
@@ -323,7 +326,7 @@ public class RegisterResource extends BaseResource {
                     } else {
                         builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
                         builder.setError(SenseCommandProtos.ErrorType.DEVICE_ALREADY_PAIRED);
-                        LOGGER.error("error=pill-already-paired pill_id={} account_id={} ip_address={}", pillId, accountId, ipAddress);
+                        LOGGER.error("error=pill-already-paired pill_id={} account_id={} ip_address={}", pillId, accountId, pairRequest.ipAddress());
                     }
                 }
                 break;
@@ -390,6 +393,9 @@ public class RegisterResource extends BaseResource {
         return signedResponse.get();
     }
 
+
+    // Don't remove this, old factory firmware attempts to register
+    // with this url
     @POST
     @Path("/morpheus")
     @Consumes(AdditionalMediaTypes.APPLICATION_PROTOBUF)
@@ -397,19 +403,7 @@ public class RegisterResource extends BaseResource {
     @Deprecated
     @Timed
     public byte[] registerMorpheus(final byte[] body) {
-
-        final String senseIdFromHeader = this.request.getHeader(HelloHttpHeader.SENSE_ID);
-        if(senseIdFromHeader != null){
-            LOGGER.info("Sense Id from http header {}", senseIdFromHeader);
-        }
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS, getIpAddress(request));
-        builder.clearAccountId();
-        if(senseIdFromHeader != null && senseIdFromHeader.equals(KeyStoreDynamoDB.DEFAULT_FACTORY_DEVICE_ID)){
-            senseKeyStore.put(builder.getDeviceId(), Hex.encodeHexString(KeyStoreDynamoDB.DEFAULT_AES_KEY));
-            LOGGER.error("Key for device {} has been automatically generated", builder.getDeviceId());
-        }
-
-        return signAndSend(builder.getDeviceId(), builder, senseKeyStore);
+        return registerSense(body);
     }
 
     @POST
@@ -427,7 +421,18 @@ public class RegisterResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
         LOGGER.info("action=pair-sense sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
 
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_MORPHEUS, ipAddress);
+        final HardwareVersion senseHwVersion = Util.getHardwareVersionFromHeader(this.request);
+
+        final GenericPairRequest pairRequest = GenericPairRequest.create(
+                senseId,
+                body,
+                senseKeyStore,
+                PairAction.PAIR_MORPHEUS,
+                ipAddress,
+                senseHwVersion
+        );
+
+        final MorpheusCommand.Builder builder = pair(pairRequest);
         if(senseIdFromHeader != null){
             return signAndSend(senseIdFromHeader, builder, senseKeyStore);
         }
@@ -448,8 +453,22 @@ public class RegisterResource extends BaseResource {
         final String ipAddress = getIpAddress(request);
         LOGGER.info("action=pair-pill sense_id={} ip_address={} fw_version={}, top_fw_version={}", senseId, ipAddress, middleFW, topFW);
 
-        final MorpheusCommand.Builder builder = pair(senseIdFromHeader, body, senseKeyStore, PairAction.PAIR_PILL, ipAddress);
+
+        final HardwareVersion senseHwVersion = Util.getHardwareVersionFromHeader(this.request);
+
+        final GenericPairRequest pairRequest = GenericPairRequest.create(
+                senseId,
+                body,
+                senseKeyStore,
+                PairAction.PAIR_PILL,
+                ipAddress,
+                senseHwVersion
+        );
+
+        final MorpheusCommand.Builder builder = pair(pairRequest);
         final String token = builder.getAccountId();
+
+
 
 
         // WARNING: never return the account id, it will overflow buffer for old versions
