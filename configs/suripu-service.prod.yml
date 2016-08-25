@@ -9,41 +9,6 @@ graphite:
     - xx-responses
     - com.hello
 
-sensors_db:
-  driverClass: org.postgresql.Driver
-  user: sensors
-  password: hello-sensors
-  url: jdbc:postgresql://sensors-1.cdawj8qazvva.us-east-1.rds.amazonaws.com:5432/sensors1
-  properties:
-    hibernate.dialect: org.hibernate.spatial.dialect.postgis.PostgisDialect
-
-  # any properties specific to your JDBC driver:
-  properties:
-    charSet: UTF-8
-
-  # the maximum amount of time to wait on an empty pool before throwing an exception
-  maxWaitForConnection: 1s
-
-  # the SQL query to run when validating a connection's liveness
-  validationQuery: "/* MyService Health Check */ SELECT 1"
-
-  initialSize: 2
-
-  # the minimum number of connections to keep open
-  minSize: 2
-
-  # the maximum number of connections to keep open
-  maxSize: 8
-
-  # whether or not idle connections should be validated
-  checkConnectionWhileIdle: false
-
-  # the amount of time to sleep between runs of the idle connection validation, abandoned cleaner and idle pool resizing
-  evictionInterval: 10s
-
-  # the minimum amount of time an connection must sit idle in the pool before it is eligible for eviction
-  minIdleTime: 1 minute
-
 common_db:
   driverClass: org.postgresql.Driver
   user: common
@@ -139,8 +104,6 @@ kinesis:
 
 audio_bucket_name : hello-data
 
-room_conditions: 1
-
 sense_upload_configuration:
   non_peak_hour_lower_bound: 9
   non_peak_hour_upper_bound: 20
@@ -153,14 +116,7 @@ ota_configuration:
   start_update_window_hour: 11
   end_update_window_hour: 20
   device_uptime_delay: 60
-  always_ota_groups: [chris-dev, video-photoshoot, victor]
   s3cache_expire_minutes: 20
-
-kinesis_logger:
-  stream_name: logs
-  enabled : true
-  buffer_size: 100
-  origin: suripu-service
 
 aws_metric_namespace: suripu-service
 dynamo_client_configuration:
@@ -187,7 +143,9 @@ dynamodb:
   region: us-east-1
   tables:
     alarm_info : prod_alarm_info
+    calibration: prod_calibration
     features : features
+    file_manifest: prod_file_manifest
     firmware_upgrade_path : prod_fw_upgrade_path
     firmware_versions : prod_firmware_versions_mapping
     ota_history : ota_history
@@ -195,16 +153,17 @@ dynamodb:
     pill_key_store : pill_key_store
     ring_time_history: prod_ring_history_by_account
     sense_key_store : key_store
-    sync_response_commands : prod_response_commands
-    teams : teams
-    calibration: prod_calibration
     sense_state: prod_sense_state
     swap_intents: prod_swap_intents
-    file_manifest: prod_file_manifest
+    sync_response_commands : prod_response_commands
+    teams : teams
+
 
   endpoints:
       alarm_info : http://dynamodb.us-east-1.amazonaws.com
+      calibration : http://dynamodb.us-east-1.amazonaws.com
       features : http://dynamodb.us-east-1.amazonaws.com
+      file_manifest: http://dynamodb.us-east-1.amazonaws.com
       firmware_upgrade_path : http://dynamodb.us-east-1.amazonaws.com
       firmware_versions : http://dynamodb.us-east-1.amazonaws.com
       ota_history : http://dynamodb.us-east-1.amazonaws.com
@@ -212,9 +171,7 @@ dynamodb:
       pill_key_store : http://dynamodb.us-east-1.amazonaws.com
       ring_time_history: http://dynamodb.us-east-1.amazonaws.com
       sense_key_store : http://dynamodb.us-east-1.amazonaws.com
-      sync_response_commands : http://dynamodb.us-east-1.amazonaws.com
-      teams : http://dynamodb.us-east-1.amazonaws.com
-      calibration : http://dynamodb.us-east-1.amazonaws.com
       sense_state: http://dynamodb.us-east-1.amazonaws.com
       swap_intents: http://dynamodb.us-east-1.amazonaws.com
-      file_manifest: http://dynamodb.us-east-1.amazonaws.com
+      sync_response_commands : http://dynamodb.us-east-1.amazonaws.com
+      teams : http://dynamodb.us-east-1.amazonaws.com

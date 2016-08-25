@@ -15,15 +15,6 @@ public class SuripuConfiguration extends Configuration {
 
     @Valid
     @NotNull
-    @JsonProperty("sensors_db")
-    private DataSourceFactory sensorsDB = new DataSourceFactory();
-
-    public DataSourceFactory getSensorsDB() {
-        return sensorsDB;
-    }
-
-    @Valid
-    @NotNull
     @JsonProperty("common_db")
     private DataSourceFactory commonDB = new DataSourceFactory();
 
@@ -76,21 +67,9 @@ public class SuripuConfiguration extends Configuration {
         return kinesisConfiguration;
     }
 
-    @JsonProperty("room_conditions")
-    private Integer roomConditions;
-    public Integer getRoomConditions() {
-        return roomConditions;
-    }
-
     @JsonProperty("sense_upload_configuration")
     private SenseUploadConfiguration senseUploadConfiguration;
     public SenseUploadConfiguration getSenseUploadConfiguration() { return this.senseUploadConfiguration; }
-
-    @JsonProperty("kinesis_logger")
-    private KinesisLoggerConfiguration kinesisLoggerConfiguration;
-    public KinesisLoggerConfiguration kinesisLoggerConfiguration() {
-        return kinesisLoggerConfiguration;
-    }
 
     @JsonProperty("ota_configuration")
     private OTAConfiguration otaConfiguration;
