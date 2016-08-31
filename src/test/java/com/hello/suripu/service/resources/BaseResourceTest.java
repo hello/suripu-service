@@ -1,6 +1,6 @@
 package com.hello.suripu.service.resources;
 
-import com.hello.suripu.coredw8.resources.BaseResource;
+import com.hello.suripu.coredropwizard.resources.BaseResource;
 import org.junit.Test;
 
 import javax.servlet.http.HttpServletRequest;

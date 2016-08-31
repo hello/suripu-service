@@ -1,5 +1,8 @@
 package com.hello.suripu.service;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -12,8 +15,6 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
@@ -50,24 +51,24 @@ import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.oauth.stores.PersistentApplicationStore;
 import com.hello.suripu.core.swap.Swapper;
 import com.hello.suripu.core.swap.ddb.DynamoDBSwapper;
-import com.hello.suripu.coredw8.clients.AmazonDynamoDBClientFactory;
-import com.hello.suripu.coredw8.db.AccessTokenDAO;
-import com.hello.suripu.coredw8.db.AuthorizationCodeDAO;
-import com.hello.suripu.coredw8.filters.SlowRequestsFilter;
-import com.hello.suripu.coredw8.health.DynamoDbHealthCheck;
-import com.hello.suripu.coredw8.health.KinesisHealthCheck;
-import com.hello.suripu.coredw8.managers.DynamoDBClientManaged;
-import com.hello.suripu.coredw8.managers.KinesisClientManaged;
-import com.hello.suripu.coredw8.metrics.RegexMetricFilter;
-import com.hello.suripu.coredw8.oauth.AccessToken;
-import com.hello.suripu.coredw8.oauth.AuthDynamicFeature;
-import com.hello.suripu.coredw8.oauth.AuthValueFactoryProvider;
-import com.hello.suripu.coredw8.oauth.OAuthAuthenticator;
-import com.hello.suripu.coredw8.oauth.OAuthAuthorizer;
-import com.hello.suripu.coredw8.oauth.OAuthCredentialAuthFilter;
-import com.hello.suripu.coredw8.oauth.ScopesAllowedDynamicFeature;
-import com.hello.suripu.coredw8.oauth.stores.PersistentAccessTokenStore;
-import com.hello.suripu.coredw8.util.CustomJSONExceptionMapper;
+import com.hello.suripu.coredropwizard.clients.AmazonDynamoDBClientFactory;
+import com.hello.suripu.coredropwizard.db.AccessTokenDAO;
+import com.hello.suripu.coredropwizard.db.AuthorizationCodeDAO;
+import com.hello.suripu.coredropwizard.filters.SlowRequestsFilter;
+import com.hello.suripu.coredropwizard.health.DynamoDbHealthCheck;
+import com.hello.suripu.coredropwizard.health.KinesisHealthCheck;
+import com.hello.suripu.coredropwizard.managers.DynamoDBClientManaged;
+import com.hello.suripu.coredropwizard.managers.KinesisClientManaged;
+import com.hello.suripu.coredropwizard.metrics.RegexMetricFilter;
+import com.hello.suripu.coredropwizard.oauth.AccessToken;
+import com.hello.suripu.coredropwizard.oauth.AuthDynamicFeature;
+import com.hello.suripu.coredropwizard.oauth.AuthValueFactoryProvider;
+import com.hello.suripu.coredropwizard.oauth.OAuthAuthenticator;
+import com.hello.suripu.coredropwizard.oauth.OAuthAuthorizer;
+import com.hello.suripu.coredropwizard.oauth.OAuthCredentialAuthFilter;
+import com.hello.suripu.coredropwizard.oauth.ScopesAllowedDynamicFeature;
+import com.hello.suripu.coredropwizard.oauth.stores.PersistentAccessTokenStore;
+import com.hello.suripu.coredropwizard.util.CustomJSONExceptionMapper;
 import com.hello.suripu.service.cli.CreateDynamoDBTables;
 import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
@@ -81,6 +82,21 @@ import com.hello.suripu.service.resources.LogsResource;
 import com.hello.suripu.service.resources.ReceiveResource;
 import com.hello.suripu.service.resources.RegisterResource;
 import com.librato.rollout.RolloutClient;
+
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.joda.time.DateTimeZone;
+import org.skife.jdbi.v2.DBI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetSocketAddress;
+import java.util.EnumSet;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
+
+import javax.servlet.DispatcherType;
+import javax.servlet.FilterRegistration;
+
 import io.dropwizard.Application;
 import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.jdbi.OptionalContainerFactory;
@@ -88,18 +104,6 @@ import io.dropwizard.jdbi.bundles.DBIExceptionsBundle;
 import io.dropwizard.server.AbstractServerFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
-import org.joda.time.DateTimeZone;
-import org.skife.jdbi.v2.DBI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.FilterRegistration;
-import java.net.InetSocketAddress;
-import java.util.EnumSet;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 
 public class SuripuService extends Application<SuripuConfiguration> {
 
