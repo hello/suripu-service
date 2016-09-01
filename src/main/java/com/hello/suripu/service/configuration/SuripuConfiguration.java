@@ -1,9 +1,9 @@
 package com.hello.suripu.service.configuration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.hello.suripu.coredw8.configuration.GraphiteConfiguration;
-import com.hello.suripu.coredw8.configuration.KinesisConfiguration;
-import com.hello.suripu.coredw8.configuration.NewDynamoDBConfiguration;
+import com.hello.suripu.coredropwizard.configuration.GraphiteConfiguration;
+import com.hello.suripu.coredropwizard.configuration.KinesisConfiguration;
+import com.hello.suripu.coredropwizard.configuration.NewDynamoDBConfiguration;
 import io.dropwizard.Configuration;
 import io.dropwizard.db.DataSourceFactory;
 
@@ -12,15 +12,6 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 public class SuripuConfiguration extends Configuration {
-
-    @Valid
-    @NotNull
-    @JsonProperty("sensors_db")
-    private DataSourceFactory sensorsDB = new DataSourceFactory();
-
-    public DataSourceFactory getSensorsDB() {
-        return sensorsDB;
-    }
 
     @Valid
     @NotNull
@@ -76,21 +67,9 @@ public class SuripuConfiguration extends Configuration {
         return kinesisConfiguration;
     }
 
-    @JsonProperty("room_conditions")
-    private Integer roomConditions;
-    public Integer getRoomConditions() {
-        return roomConditions;
-    }
-
     @JsonProperty("sense_upload_configuration")
     private SenseUploadConfiguration senseUploadConfiguration;
     public SenseUploadConfiguration getSenseUploadConfiguration() { return this.senseUploadConfiguration; }
-
-    @JsonProperty("kinesis_logger")
-    private KinesisLoggerConfiguration kinesisLoggerConfiguration;
-    public KinesisLoggerConfiguration kinesisLoggerConfiguration() {
-        return kinesisLoggerConfiguration;
-    }
 
     @JsonProperty("ota_configuration")
     private OTAConfiguration otaConfiguration;

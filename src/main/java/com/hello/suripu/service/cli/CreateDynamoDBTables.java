@@ -14,7 +14,7 @@ import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
 import com.hello.suripu.core.firmware.FirmwareFile;
 import com.hello.suripu.core.firmware.HardwareVersion;
 import com.hello.suripu.core.firmware.db.OTAFileSettingsDynamoDB;
-import com.hello.suripu.coredw8.configuration.NewDynamoDBConfiguration;
+import com.hello.suripu.coredropwizard.configuration.NewDynamoDBConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
 import io.dropwizard.cli.ConfiguredCommand;
 import io.dropwizard.setup.Bootstrap;

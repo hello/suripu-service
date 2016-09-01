@@ -46,7 +46,7 @@ import com.hello.suripu.core.util.DateTimeUtil;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.RoomConditionUtil;
 import com.hello.suripu.core.util.SenseLogLevelUtil;
-import com.hello.suripu.coredw8.resources.BaseResource;
+import com.hello.suripu.coredropwizard.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
@@ -76,6 +76,7 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -946,7 +947,6 @@ public class ReceiveResource extends BaseResource {
         final DateTime currentDTZ = DateTime.now().withZone(userTimeZone);
         final DateTime startOTAWindow = new DateTime(userTimeZone).withHourOfDay(otaConfiguration.getStartUpdateWindowHour()).withMinuteOfHour(0).withSecondOfMinute(0);
         final DateTime endOTAWindow = new DateTime(userTimeZone).withHourOfDay(otaConfiguration.getEndUpdateWindowHour()).withMinuteOfHour(0).withSecondOfMinute(0);
-        final Set<String> alwaysOTAGroups = otaConfiguration.getAlwaysOTAGroups();
         final Integer deviceUptimeDelay = otaConfiguration.getDeviceUptimeDelay();
         Boolean bypassOTAChecks = (featureFlipper.deviceFeatureActive(FeatureFlipper.BYPASS_OTA_CHECKS, deviceID, deviceGroups));
         final String ipAddress = getIpAddress(request);
@@ -994,7 +994,7 @@ public class ReceiveResource extends BaseResource {
         final boolean canOTA = OTAProcessor.canDeviceOTA(
                 deviceID,
                 deviceGroups,
-                alwaysOTAGroups,
+                new HashSet<String>(), // to be removed entirely
                 deviceUptimeDelay,
                 uptimeInSeconds,
                 currentDTZ,
