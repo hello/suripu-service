@@ -1,9 +1,9 @@
 package com.hello.suripu.service.configuration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.hello.suripu.coredw8.configuration.GraphiteConfiguration;
-import com.hello.suripu.coredw8.configuration.KinesisConfiguration;
-import com.hello.suripu.coredw8.configuration.NewDynamoDBConfiguration;
+import com.hello.suripu.coredropwizard.configuration.GraphiteConfiguration;
+import com.hello.suripu.coredropwizard.configuration.KinesisConfiguration;
+import com.hello.suripu.coredropwizard.configuration.NewDynamoDBConfiguration;
 import io.dropwizard.Configuration;
 import io.dropwizard.db.DataSourceFactory;
 

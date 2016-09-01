@@ -10,7 +10,7 @@ import com.hello.suripu.api.audio.MatrixProtos;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.logging.DataLogger;
-import com.hello.suripu.coredw8.resources.BaseResource;
+import com.hello.suripu.coredropwizard.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.librato.rollout.RolloutClient;
 import org.slf4j.Logger;

@@ -12,7 +12,7 @@ import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
 import com.hello.suripu.core.swap.Swapper;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.PairAction;
-import com.hello.suripu.coredw8.oauth.AccessToken;
+import com.hello.suripu.coredropwizard.oauth.AccessToken;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.pairing.PairState;
 import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
