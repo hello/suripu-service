@@ -36,12 +36,13 @@ import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.models.Alarm;
 import com.hello.suripu.core.models.Calibration;
-import com.hello.suripu.core.models.CurrentRoomState;
+import com.hello.suripu.core.roomstate.CurrentRoomState;
 import com.hello.suripu.core.models.RingTime;
 import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.processors.OTAProcessor;
 import com.hello.suripu.core.processors.RingProcessor;
+import com.hello.suripu.core.roomstate.Condition;
 import com.hello.suripu.core.util.DateTimeUtil;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.RoomConditionUtil;
@@ -435,6 +436,24 @@ public class ReceiveResource extends BaseResource {
             }
         }
 
+        // Sense 1p5 production should not download new files
+        // what you have on sense is what you should have from server
+        // this is a hack because I don't have time to do the hardware version filtering properly
+        // For DVT sense they will rely on the sense_file_info table to force download non public files
+
+        final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
+        final boolean isSense1p5DVT = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.DVT_FILE_DOWNLOAD_ENABLED.getFeatureName(), debugSenseId, new ArrayList<>());
+        if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion) && !isSense1p5DVT) {
+            LOGGER.info("msg=file-download-disabled sense_id={} hw_version={}", debugSenseId, hardwareVersion);
+            final Optional<byte[]> signedResponse = SignedMessage.sign(fileManifest.toByteArray(), optionalKeyBytes.get());
+            if (!signedResponse.isPresent()) {
+                LOGGER.error("endpoint=files error=failed-signing-message sense-id={}", senseId);
+                return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
+            }
+            return signedResponse.get();
+        }
+
+
         // Synchronize
         final Boolean fileDownloadsDisabled = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, groups);
         final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled);
@@ -579,8 +598,8 @@ public class ReceiveResource extends BaseResource {
 
                 if (featureFlipper.deviceFeatureActive(FeatureFlipper.NEW_ROOM_CONDITION, deviceName, groups)) {
                     final Boolean hasCalibration = featureFlipper.deviceFeatureActive(FeatureFlipper.CALIBRATION, deviceName, groups);
-                    final CurrentRoomState.State.Condition roomConditions = RoomConditionUtil.getGeneralRoomConditionV2(currentRoomState, hasCalibration && calibrationOptional.isPresent());
-                    final CurrentRoomState.State.Condition roomConditionsLightsOff = RoomConditionUtil.getRoomConditionV2LightOff(currentRoomState, hasCalibration && calibrationOptional.isPresent());
+                    final Condition roomConditions = RoomConditionUtil.getGeneralRoomConditionV2(currentRoomState, hasCalibration && calibrationOptional.isPresent());
+                    final Condition roomConditionsLightsOff = RoomConditionUtil.getRoomConditionV2LightOff(currentRoomState, hasCalibration && calibrationOptional.isPresent());
                     responseBuilder.setRoomConditions(
                             OutputProtos.SyncResponse.RoomConditions.valueOf(
                                     roomConditions.ordinal()));
