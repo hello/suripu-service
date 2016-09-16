@@ -448,9 +448,13 @@ public class ReceiveResource extends BaseResource {
         // this is a hack because I don't have time to do the hardware version filtering properly
         // For DVT sense they will rely on the sense_file_info table to force download non public files
         final Boolean isInDVTList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
-        if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion) && isInDVTList) {
-            fileDownloadsDisabled = false;
+        if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion)) {
+            fileDownloadsDisabled = true;
+            if(isInDVTList) {
+                fileDownloadsDisabled = false; // override for DVT only
+            }
         }
+
 
         final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled);
 
