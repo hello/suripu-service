@@ -436,26 +436,22 @@ public class ReceiveResource extends BaseResource {
             }
         }
 
+
+
+        final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
+
+        // Synchronize
+        Boolean fileDownloadsDisabled = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, groups);
+
         // Sense 1p5 production should not download new files
         // what you have on sense is what you should have from server
         // this is a hack because I don't have time to do the hardware version filtering properly
         // For DVT sense they will rely on the sense_file_info table to force download non public files
-
-        final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
-        final boolean isSense1p5DVT = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.DVT_FILE_DOWNLOAD_ENABLED.getFeatureName(), debugSenseId, new ArrayList<>());
-        if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion) && !isSense1p5DVT) {
-            LOGGER.info("msg=file-download-disabled sense_id={} hw_version={}", debugSenseId, hardwareVersion);
-            final Optional<byte[]> signedResponse = SignedMessage.sign(fileManifest.toByteArray(), optionalKeyBytes.get());
-            if (!signedResponse.isPresent()) {
-                LOGGER.error("endpoint=files error=failed-signing-message sense-id={}", senseId);
-                return plainTextError(Response.Status.INTERNAL_SERVER_ERROR, "");
-            }
-            return signedResponse.get();
+        final Boolean isInDVTList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
+        if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion) && isInDVTList) {
+            fileDownloadsDisabled = false;
         }
 
-
-        // Synchronize
-        final Boolean fileDownloadsDisabled = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, groups);
         final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled);
 
         // Mark any updates we're sending

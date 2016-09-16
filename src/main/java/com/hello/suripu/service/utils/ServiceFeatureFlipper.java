@@ -8,7 +8,7 @@ public enum ServiceFeatureFlipper {
     // Blacklist for Senses that should not download files
     FILE_DOWNLOAD_DISABLED("file_download_disabled"),
     SENSE_SWAP_ENABLED("sense_swap_enabled"),
-    DVT_FILE_DOWNLOAD_ENABLED("dvt_file_download");
+    IS_SENSE_ONE_FIVE_DVT_UNIT("is_sense_one_five_dvt_unit");
 
     private final String featureName;
     ServiceFeatureFlipper(final String name) {
