@@ -1,8 +1,5 @@
 package com.hello.suripu.service;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -15,6 +12,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
@@ -82,21 +81,6 @@ import com.hello.suripu.service.resources.LogsResource;
 import com.hello.suripu.service.resources.ReceiveResource;
 import com.hello.suripu.service.resources.RegisterResource;
 import com.librato.rollout.RolloutClient;
-
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
-import org.joda.time.DateTimeZone;
-import org.skife.jdbi.v2.DBI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
-import java.util.EnumSet;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.FilterRegistration;
-
 import io.dropwizard.Application;
 import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.jdbi.OptionalContainerFactory;
@@ -104,6 +88,18 @@ import io.dropwizard.jdbi.bundles.DBIExceptionsBundle;
 import io.dropwizard.server.AbstractServerFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.joda.time.DateTimeZone;
+import org.skife.jdbi.v2.DBI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.servlet.DispatcherType;
+import javax.servlet.FilterRegistration;
+import java.net.InetSocketAddress;
+import java.util.EnumSet;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 public class SuripuService extends Application<SuripuConfiguration> {
 
@@ -339,7 +335,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 deviceDAO,
                 new DynamoDB(mergedInfoDynamoDBClient),
                 tableNames.get(DynamoDBTableName.SWAP_INTENTS),
-                tableNames.get(DynamoDBTableName.ALARM_INFO)
+                mergedUserInfoDynamoDB
         );
 
         final PillPairStateEvaluator pillPairStateEvaluator = new PillPairStateEvaluator(deviceDAO);
