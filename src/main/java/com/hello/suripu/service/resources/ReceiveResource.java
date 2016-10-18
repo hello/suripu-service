@@ -14,10 +14,10 @@ import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
+import com.hello.suripu.api.expansions.ExpansionProtos;
 import com.hello.suripu.api.input.DataInputProtos;
 import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.api.input.State;
-import com.hello.suripu.api.output.AlarmAction;
 import com.hello.suripu.api.output.OutputProtos;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.CalibrationDAO;
@@ -699,7 +699,7 @@ public class ReceiveResource extends BaseResource {
             if(shouldLogAlarmActions(now, nextRingTime, ALARM_ACTIONS_WINDOW_MINS)) {
                 final DataLogger alarmActionsLogger = kinesisLoggerFactory.get(QueueName.ALARM_ACTIONS);
                 for(final AlarmExpansion expansion : nextRingTime.expansions){
-                    final AlarmAction.alarm_action.Builder alarmActionBuilder = AlarmAction.alarm_action.newBuilder()
+                    final ExpansionProtos.AlarmAction.Builder alarmActionBuilder = ExpansionProtos.AlarmAction.newBuilder()
                         .setDeviceId(deviceName)
                         .setUnixTime(now.getMillis() / 1000)
                         .setExpansionId(expansion.id)
