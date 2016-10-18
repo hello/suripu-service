@@ -104,7 +104,7 @@ public class ReceiveResource extends BaseResource {
     private static final String LOCAL_OFFICE_IP_ADDRESS = "204.28.123.251";
     private static final String FW_VERSION_0_9_22_RC7 = "1530439804";
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
-    private static final Integer ALARM_ACTIONS_WINDOW_MINS = 600;
+    private static final Integer ALARM_ACTIONS_WINDOW_MINS = 60;
     private final int ringDurationSec;
 
     private final KeyStore keyStore;
@@ -703,7 +703,7 @@ public class ReceiveResource extends BaseResource {
                         .setDeviceId(deviceName)
                         .setUnixTime(now.getMillis() / 1000)
                         .setExpansionId(expansion.id)
-                        .setRingOffsetFromNowInSecond((nextRingTime.expectedRingTimeUTC - now.getMillis()) / 1000);
+                        .setExpectedRingtimeUtc(nextRingTime.expectedRingTimeUTC);
 
                     if(expansion.enable) {
                         alarmActionsLogger.put(deviceName, alarmActionBuilder.build().toByteArray());
@@ -789,7 +789,7 @@ public class ReceiveResource extends BaseResource {
 
     public static boolean shouldLogAlarmActions(final DateTime now, final RingTime nextRingTime, final Integer actionTimeBufferMins) {
         return now.plusMinutes(actionTimeBufferMins).isAfter(nextRingTime.actualRingTimeUTC) &&
-            now.isAfter(nextRingTime.actualRingTimeUTC) == false &&
+            !now.isAfter(nextRingTime.actualRingTimeUTC) &&
             !nextRingTime.isEmpty() &&
             nextRingTime.expansions != null &&
             !nextRingTime.expansions.isEmpty();
