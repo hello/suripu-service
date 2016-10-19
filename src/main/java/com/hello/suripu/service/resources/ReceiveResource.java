@@ -702,10 +702,10 @@ public class ReceiveResource extends BaseResource {
                     final ExpansionProtos.AlarmAction.Builder alarmActionBuilder = ExpansionProtos.AlarmAction.newBuilder()
                         .setDeviceId(deviceName)
                         .setUnixTime(now.getMillis() / 1000)
-                        .setExpansionId(expansion.id)
+                        .setServiceType(ExpansionProtos.ServiceType.valueOf(expansion.serviceName))
                         .setExpectedRingtimeUtc(nextRingTime.expectedRingTimeUTC);
 
-                    if(expansion.enable) {
+                    if(expansion.enabled) {
                         alarmActionsLogger.put(deviceName, alarmActionBuilder.build().toByteArray());
                     }
                 }
