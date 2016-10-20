@@ -703,7 +703,9 @@ public class ReceiveResource extends BaseResource {
                         .setDeviceId(deviceName)
                         .setUnixTime(now.getMillis() / 1000)
                         .setServiceType(ExpansionProtos.ServiceType.valueOf(expansion.serviceName))
-                        .setExpectedRingtimeUtc(nextRingTime.expectedRingTimeUTC);
+                        .setExpectedRingtimeUtc(nextRingTime.expectedRingTimeUTC)
+                        .setTargetValueMin(expansion.targetValue.min)
+                        .setTargetValueMax(expansion.targetValue.max);
 
                     if(expansion.enabled) {
                         alarmActionsLogger.put(deviceName, alarmActionBuilder.build().toByteArray());
