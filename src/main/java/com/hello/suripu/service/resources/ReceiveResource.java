@@ -708,6 +708,7 @@ public class ReceiveResource extends BaseResource {
                         .setTargetValueMax(expansion.targetValue.max);
 
                     if(expansion.enabled) {
+                        LOGGER.info("action=kinesis-alarm-action-put sense_id={} expansion_id={}", deviceName, expansion.id);
                         alarmActionsLogger.put(deviceName, alarmActionBuilder.build().toByteArray());
                     }
                 }
