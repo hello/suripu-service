@@ -99,6 +99,7 @@ kinesis:
     batch_pill_data : dev_batch_pill_data
     sense_sensors_data : dev_sense_sensors_data
     logs: logs # we want this to point to prod stream for indexing.
+    alarm_actions: dev_alarm_actions
 
 audio_bucket_name : hello-data
 
