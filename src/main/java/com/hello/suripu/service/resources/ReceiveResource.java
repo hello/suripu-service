@@ -1,18 +1,20 @@
 package com.hello.suripu.service.resources;
 
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.TextFormat;
+
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
+import com.hello.suripu.api.expansions.ExpansionProtos;
 import com.hello.suripu.api.input.DataInputProtos;
 import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.api.input.State;
@@ -35,14 +37,15 @@ import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.models.Alarm;
+import com.hello.suripu.core.models.AlarmExpansion;
 import com.hello.suripu.core.models.Calibration;
-import com.hello.suripu.core.roomstate.CurrentRoomState;
 import com.hello.suripu.core.models.RingTime;
 import com.hello.suripu.core.models.SenseStateAtTime;
 import com.hello.suripu.core.models.UserInfo;
 import com.hello.suripu.core.processors.OTAProcessor;
 import com.hello.suripu.core.processors.RingProcessor;
 import com.hello.suripu.core.roomstate.Condition;
+import com.hello.suripu.core.roomstate.CurrentRoomState;
 import com.hello.suripu.core.util.DateTimeUtil;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.RoomConditionUtil;
@@ -57,6 +60,7 @@ import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
+
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -64,6 +68,14 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -74,13 +86,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -99,6 +104,7 @@ public class ReceiveResource extends BaseResource {
     private static final String LOCAL_OFFICE_IP_ADDRESS = "204.28.123.251";
     private static final String FW_VERSION_0_9_22_RC7 = "1530439804";
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
+    private static final Integer ALARM_ACTIONS_WINDOW_MINS = 60;
     private final int ringDurationSec;
 
     private final KeyStore keyStore;
@@ -688,6 +694,27 @@ public class ReceiveResource extends BaseResource {
                 this.ringTimeHistoryDAODynamoDB.setNextRingTime(deviceName, userInfoList, nextRingTime);
             }
 
+
+            //Log to a kinesis stream an alarm action if within the Alarm Actions window (default 60 mins)
+            if(shouldLogAlarmActions(now, nextRingTime, ALARM_ACTIONS_WINDOW_MINS)) {
+                final DataLogger alarmActionsLogger = kinesisLoggerFactory.get(QueueName.ALARM_ACTIONS);
+                for(final AlarmExpansion expansion : nextRingTime.expansions){
+                    final ExpansionProtos.AlarmAction.Builder alarmActionBuilder = ExpansionProtos.AlarmAction.newBuilder()
+                        .setDeviceId(deviceName)
+                        .setUnixTime(now.getMillis() / 1000)
+                        .setServiceType(ExpansionProtos.ServiceType.valueOf(expansion.serviceName))
+                        .setExpectedRingtimeUtc(nextRingTime.expectedRingTimeUTC)
+                        .setTargetValueMin(expansion.targetValue.min)
+                        .setTargetValueMax(expansion.targetValue.max);
+
+                    if(expansion.enabled) {
+                        LOGGER.info("action=kinesis-alarm-action-put sense_id={} expansion_id={}", deviceName, expansion.id);
+                        alarmActionsLogger.put(deviceName, alarmActionBuilder.build().toByteArray());
+                    }
+                }
+
+            }
+
             LOGGER.debug("{} batch size set to {}", deviceName, responseBuilder.getBatchSize());
             responseBuilder.setAudioControl(audioControl);
             setPillColors(userInfoList, responseBuilder);
@@ -763,6 +790,13 @@ public class ReceiveResource extends BaseResource {
                 nextRingTime.isEmpty() == false;
     }
 
+    public static boolean shouldLogAlarmActions(final DateTime now, final RingTime nextRingTime, final Integer actionTimeBufferMins) {
+        return now.plusMinutes(actionTimeBufferMins).isAfter(nextRingTime.actualRingTimeUTC) &&
+            !now.isAfter(nextRingTime.actualRingTimeUTC) &&
+            !nextRingTime.isEmpty() &&
+            nextRingTime.expansions != null &&
+            !nextRingTime.expansions.isEmpty();
+    }
 
     public static int computeNextUploadInterval(final RingTime nextRingTime, final DateTime now, final SenseUploadConfiguration senseUploadConfiguration, final Boolean isIncreasedInterval){
 
