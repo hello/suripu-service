@@ -7,6 +7,7 @@ import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.EncodeProtos;
 import com.hello.suripu.api.audio.FileTransfer;
 import com.hello.suripu.api.audio.MatrixProtos;
+import com.hello.suripu.api.audio.SimpleMatrixProtos;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.logging.DataLogger;
@@ -54,6 +55,42 @@ public class AudioResource extends BaseResource {
         this.debug = debug;
         this.audioMetadataLogger = audioMetadataLogger;
         this.keyStore = senseKeyStore;
+    }
+
+    @POST
+    @Path("/keyword_features")
+    public void getKeywordFeatures(byte[] body) {
+
+
+        final SignedMessage signedMessage = SignedMessage.parse(body);
+        SimpleMatrixProtos.SimpleMatrix message = SimpleMatrixProtos.SimpleMatrix.getDefaultInstance();
+
+        try {
+            message = SimpleMatrixProtos.SimpleMatrix.parseFrom(signedMessage.body);
+        } catch (IOException exception) {
+            final String errorMessage = String.format("Failed parsing protobuf: %s", exception.getMessage());
+            LOGGER.error(errorMessage);
+
+            throwPlainTextError(Response.Status.BAD_REQUEST, "");
+        }
+
+        final String deviceId = message.getDeviceId();
+        if(!featureFlipper.deviceFeatureActive(FeatureFlipper.ALWAYS_ON_AUDIO, deviceId, new ArrayList<String>())) {
+            LOGGER.trace("{} is disabled for {}", FeatureFlipper.ALWAYS_ON_AUDIO, deviceId);
+            return;
+        }
+
+        final Optional<byte[]> keyBytes = keyStore.get(deviceId);
+
+        final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(keyBytes.get());
+
+        if(error.isPresent()) {
+            LOGGER.error(error.get().message);
+            throwPlainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+
+        dataLogger.put(deviceId, signedMessage.body);
+
     }
 
     @POST
