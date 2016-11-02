@@ -374,12 +374,13 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final DataLogger audioMetaDataLogger = kinesisLoggerFactory.get(QueueName.ENCODE_AUDIO);
         environment.jersey().register(
             new AudioResource(
-                s3Client,
-                bucketName,
-                audioDataLogger,
-                configuration.getDebug(),
-                audioMetaDataLogger,
-                senseKeyStore));
+                    s3Client,
+                    bucketName,
+                    audioDataLogger,
+                    configuration.getDebug(),
+                    audioMetaDataLogger,
+                    senseKeyStore,
+                    groupFlipper));
 
         // Manage the lifecycle of our clients
         environment.lifecycle().manage(new DynamoDBClientManaged(senseKeyStoreDynamoDBClient));

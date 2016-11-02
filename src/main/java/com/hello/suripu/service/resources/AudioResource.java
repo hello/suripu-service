@@ -2,16 +2,22 @@ package com.hello.suripu.service.resources;
 
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
+import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.EncodeProtos;
 import com.hello.suripu.api.audio.FileTransfer;
 import com.hello.suripu.api.audio.MatrixProtos;
+import com.hello.suripu.api.audio.SimpleMatrixProtos;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.flipper.FeatureFlipper;
+import com.hello.suripu.core.flipper.GroupFlipper;
 import com.hello.suripu.core.logging.DataLogger;
+import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.coredropwizard.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,13 +32,19 @@ import javax.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @Path("/audio")
 public class AudioResource extends BaseResource {
 
     @Inject RolloutClient featureFlipper;
 
+    @Context
+    HttpServletRequest request;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AudioResource.class);
+
+    private final GroupFlipper groupFlipper;
 
     private final AmazonS3Client s3Client;
     private final String audioBucketName;
@@ -47,13 +59,81 @@ public class AudioResource extends BaseResource {
             final DataLogger dataLogger,
             final boolean debug,
             final DataLogger audioMetadataLogger,
-            final KeyStore senseKeyStore) {
+            final KeyStore senseKeyStore,
+            final GroupFlipper groupFlipper) {
         this.s3Client = s3Client;
         this.audioBucketName = audioBucketName;
         this.dataLogger = dataLogger;
         this.debug = debug;
         this.audioMetadataLogger = audioMetadataLogger;
         this.keyStore = senseKeyStore;
+        this.groupFlipper = groupFlipper;
+    }
+
+    @POST
+    @Timed
+    @Path("/keyword_features")
+    public void getKeywordFeatures(byte[] body) {
+        final String ipAddress = getIpAddress(request);
+
+        final SignedMessage signedMessage = SignedMessage.parse(body);
+
+        //get Sense (device) ID from the header
+        String debugSenseId = this.request.getHeader(HelloHttpHeader.SENSE_ID);
+        if (debugSenseId == null) {
+            debugSenseId = "";
+        }
+
+        LOGGER.debug("sense_id={}", debugSenseId);
+
+        SimpleMatrixProtos.SimpleMatrix message = SimpleMatrixProtos.SimpleMatrix.getDefaultInstance();
+
+        try {
+            message = SimpleMatrixProtos.SimpleMatrix.parseFrom(signedMessage.body);
+        } catch (IOException exception) {
+            LOGGER.error("endpoint=keyword-features error=protobuf-parsing-failed sense_id={} ip_address={} message={}", debugSenseId, ipAddress, exception.getMessage());
+            throwPlainTextError(Response.Status.BAD_REQUEST, "");
+        }
+
+        //count number of bytes across payload
+        int num_bytes = 0;
+        for (int iPayload = 0; iPayload < message.getPayloadCount(); iPayload++) {
+            num_bytes += message.getPayload(iPayload).size();
+        }
+
+        LOGGER.info("endpoint=keyword-features sense_id={} protobuf-payload-size={} protobuf-id={}", debugSenseId, num_bytes,message.getId());
+
+        //verify header sense id matches protobuf
+        if (!message.hasDeviceId() || message.getDeviceId().isEmpty()) {
+            LOGGER.error("endpoint=keyword-features error=empty-device-id sense_id={}", debugSenseId);
+            throwPlainTextError(Response.Status.BAD_REQUEST, "empty device id");
+        }
+
+        final String senseId = message.getDeviceId();
+
+        if (!senseId.equals(debugSenseId)) {
+            LOGGER.error("endpoint=keyword-features error=sense-id-no-match sense_id={} proto-sense-id={}", debugSenseId, senseId);
+            throwPlainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
+        }
+
+        final List<String> groups = groupFlipper.getGroups(senseId);
+
+        if(!featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SERVER_ACCEPTS_KEYWORD_FEATURES.getFeatureName(), senseId, groups)) {
+            LOGGER.trace("{} is disabled for {}", ServiceFeatureFlipper.SERVER_ACCEPTS_KEYWORD_FEATURES.getFeatureName(), senseId);
+            return;
+        }
+
+        final Optional<byte[]> keyBytes = keyStore.get(senseId);
+
+        final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(keyBytes.get());
+
+        if(error.isPresent()) {
+            LOGGER.error("endpoint=keyword-features error=signature-failed sense_id={} ip_address={} message={}", senseId, ipAddress, error.get().message);
+            throwPlainTextError(Response.Status.UNAUTHORIZED, "");
+        }
+
+        dataLogger.put(senseId, signedMessage.body);
+
     }
 
     @POST
