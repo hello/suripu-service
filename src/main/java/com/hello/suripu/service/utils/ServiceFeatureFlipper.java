@@ -8,6 +8,8 @@ public enum ServiceFeatureFlipper {
     // Blacklist for Senses that should not download files
     FILE_DOWNLOAD_DISABLED("file_download_disabled"),
     SENSE_SWAP_ENABLED("sense_swap_enabled"),
+    SENSE_UPLOADS_KEYWORD_FEATURES("sense_uploads_keyword_features"),
+    SERVER_ACCEPTS_KEYWORD_FEATURES("server_accepts_keyword_features"),
     IS_SENSE_ONE_FIVE_DVT_UNIT("is_sense_one_five_dvt_unit");
 
     private final String featureName;
