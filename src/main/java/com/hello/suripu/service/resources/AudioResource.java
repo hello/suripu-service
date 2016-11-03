@@ -10,7 +10,6 @@ import com.hello.suripu.api.audio.EncodeProtos;
 import com.hello.suripu.api.audio.FileTransfer;
 import com.hello.suripu.api.audio.MatrixProtos;
 import com.hello.suripu.api.audio.SimpleMatrixProtos;
-import com.hello.suripu.api.input.State;
 import com.hello.suripu.core.db.KeyStore;
 import com.hello.suripu.core.flipper.FeatureFlipper;
 import com.hello.suripu.core.flipper.GroupFlipper;
