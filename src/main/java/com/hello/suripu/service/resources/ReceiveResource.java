@@ -13,6 +13,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
+import com.hello.suripu.api.audio.AudioFeaturesControlProtos;
 import com.hello.suripu.api.ble.SenseCommandProtos;
 import com.hello.suripu.api.expansions.ExpansionProtos;
 import com.hello.suripu.api.input.DataInputProtos;
@@ -686,6 +687,14 @@ public class ReceiveResource extends BaseResource {
                 audioControl.setAudioSaveRawData(AudioControlProtos.AudioControl.AudioCaptureAction.ON);
             }
 
+
+            //feature flip SENSE_UPLOADS_KEYWORD_FEATURES controls if Sense uploads the keyword features or not
+            final AudioFeaturesControlProtos.AudioFeaturesControl.Builder audioFeaturesControl =
+                    AudioFeaturesControlProtos.AudioFeaturesControl.newBuilder().setEnableKeywordFeatures(
+                                    featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SENSE_UPLOADS_KEYWORD_FEATURES.getFeatureName(), deviceName, groups));
+
+
+
             final Boolean isIncreasedInterval = featureFlipper.deviceFeatureActive(FeatureFlipper.INCREASE_UPLOAD_INTERVAL, deviceName, groups);
             final int uploadCycle = computeNextUploadInterval(nextRingTime, now, senseUploadConfiguration, isIncreasedInterval);
             responseBuilder.setBatchSize(uploadCycle);
@@ -716,8 +725,10 @@ public class ReceiveResource extends BaseResource {
             }
 
             LOGGER.debug("{} batch size set to {}", deviceName, responseBuilder.getBatchSize());
-            responseBuilder.setAudioControl(audioControl);
             setPillColors(userInfoList, responseBuilder);
+            responseBuilder.setAudioControl(audioControl);
+            responseBuilder.setAudioFeaturesControl(audioFeaturesControl);
+
         } else {
             LOGGER.error("error=no-timezone message=default-utc-for-ota sense_id={} ip_address={}", deviceName, ipAddress);
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
