@@ -95,11 +95,6 @@ public class AudioResource extends BaseResource {
             throwPlainTextError(Response.Status.BAD_REQUEST, "");
         }
 
-        //count number of bytes across payload
-        int num_bytes = 0;
-        for (int iPayload = 0; iPayload < message.getPayloadCount(); iPayload++) {
-            num_bytes += message.getPayload(iPayload).size();
-        }
 
         LOGGER.info("endpoint=keyword-features sense_id={} protobuf-payload-size={} protobuf-id={}", debugSenseId, num_bytes,message.getId());
 
@@ -116,6 +111,12 @@ public class AudioResource extends BaseResource {
             throwPlainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
         }
 
+        //count number of bytes across payload
+        int num_bytes = 0;
+        for (int iPayload = 0; iPayload < message.getPayloadCount(); iPayload++) {
+            num_bytes += message.getPayload(iPayload).size();
+        }
+        
         final List<String> groups = groupFlipper.getGroups(senseId);
 
         if(!featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SERVER_ACCEPTS_KEYWORD_FEATURES.getFeatureName(), senseId, groups)) {
