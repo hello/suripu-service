@@ -88,15 +88,13 @@ public class AudioResource extends BaseResource {
 
         SimpleMatrixProtos.SimpleMatrix message = SimpleMatrixProtos.SimpleMatrix.getDefaultInstance();
 
+        //deserialize protobuf
         try {
             message = SimpleMatrixProtos.SimpleMatrix.parseFrom(signedMessage.body);
         } catch (IOException exception) {
             LOGGER.error("endpoint=keyword-features error=protobuf-parsing-failed sense_id={} ip_address={} message={}", debugSenseId, ipAddress, exception.getMessage());
             throwPlainTextError(Response.Status.BAD_REQUEST, "");
         }
-
-
-        LOGGER.info("endpoint=keyword-features sense_id={} protobuf-payload-size={} protobuf-id={}", debugSenseId, num_bytes,message.getId());
 
         //verify header sense id matches protobuf
         if (!message.hasDeviceId() || message.getDeviceId().isEmpty()) {
@@ -106,6 +104,7 @@ public class AudioResource extends BaseResource {
 
         final String senseId = message.getDeviceId();
 
+        //confirm message sense id matches header
         if (!senseId.equals(debugSenseId)) {
             LOGGER.error("endpoint=keyword-features error=sense-id-no-match sense_id={} proto-sense-id={}", debugSenseId, senseId);
             throwPlainTextError(Response.Status.BAD_REQUEST, "Device ID doesn't match header");
@@ -116,9 +115,12 @@ public class AudioResource extends BaseResource {
         for (int iPayload = 0; iPayload < message.getPayloadCount(); iPayload++) {
             num_bytes += message.getPayload(iPayload).size();
         }
-        
+
+        LOGGER.info("endpoint=keyword-features sense_id={} protobuf-payload-size={} protobuf-id={}", debugSenseId, num_bytes,message.getId());
+
         final List<String> groups = groupFlipper.getGroups(senseId);
 
+        //check feature flip
         if(!featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SERVER_ACCEPTS_KEYWORD_FEATURES.getFeatureName(), senseId, groups)) {
             LOGGER.trace("{} is disabled for {}", ServiceFeatureFlipper.SERVER_ACCEPTS_KEYWORD_FEATURES.getFeatureName(), senseId);
             return;
@@ -126,6 +128,7 @@ public class AudioResource extends BaseResource {
 
         final Optional<byte[]> keyBytes = keyStore.get(senseId);
 
+        //verify message is signed
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(keyBytes.get());
 
         if(error.isPresent()) {
@@ -133,6 +136,7 @@ public class AudioResource extends BaseResource {
             throwPlainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
+        //insert into kinesis stream
         dataLogger.put(senseId, signedMessage.body);
 
     }
