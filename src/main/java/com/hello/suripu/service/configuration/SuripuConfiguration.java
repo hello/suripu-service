@@ -98,6 +98,14 @@ public class SuripuConfiguration extends Configuration {
 
     @Valid
     @NotNull
+    @JsonProperty("audio_features_firehose")
+    private String audioFeaturesFirehose;
+    public String getAudioFeaturesFirehose() {
+        return this.audioFeaturesFirehose;
+    }
+
+    @Valid
+    @NotNull
     @JsonProperty("dynamodb")
     private NewDynamoDBConfiguration dynamoDBConfiguration;
 
