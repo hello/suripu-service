@@ -392,7 +392,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
                     configuration.getDebug(),
                     audioMetaDataLogger,
                     senseKeyStore,
-                    groupFlipper));
+                    groupFlipper,
+                    environment.getObjectMapper()));
 
         // Manage the lifecycle of our clients
         environment.lifecycle().manage(new DynamoDBClientManaged(senseKeyStoreDynamoDBClient));

@@ -73,7 +73,8 @@ public class AudioResource extends BaseResource {
             final boolean debug,
             final DataLogger audioMetadataLogger,
             final KeyStore senseKeyStore,
-            final GroupFlipper groupFlipper) {
+            final GroupFlipper groupFlipper,
+            final ObjectMapper objectMapper) {
         this.s3Client = s3Client;
         this.audioBucketName = audioBucketName;
         this.audioFeaturesFirehose = audioFeaturesFirehose;
@@ -82,7 +83,7 @@ public class AudioResource extends BaseResource {
         this.keyStore = senseKeyStore;
         this.groupFlipper = groupFlipper;
         this.audioFeaturesFirehoseStreamName = audioFeaturesFirehoseStreamName;
-        objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
     }
 
     @POST
