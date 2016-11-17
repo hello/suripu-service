@@ -375,16 +375,20 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final DataLogger audioDataLogger = kinesisLoggerFactory.get(QueueName.AUDIO_FEATURES);
         final DataLogger audioMetaDataLogger = kinesisLoggerFactory.get(QueueName.ENCODE_AUDIO);
 
-        //TODO create client configuration for this based on our use case
+        //TODO optimize client configuration for this based on our use case
         // (noting that on firmware we are rate limited to 2 per 5 minutes per sense,
         // and an upload might happen  maybe only 100 times a day)
-        final AmazonKinesisFirehoseAsync audioFeaturesFirehose = new AmazonKinesisFirehoseAsyncClient(awsCredentialsProvider).withEndpoint(configuration.getAudioFeaturesFirehose());
+        final AmazonKinesisFirehoseAsync audioFeaturesFirehose = new AmazonKinesisFirehoseAsyncClient(awsCredentialsProvider)
+                .withEndpoint(configuration.getAudioFirehoseConfiguration().getEndpoint());
+
+        final String audioFeaturesFirehoseStreamName = configuration.getAudioFirehoseConfiguration().getStreamName();
 
         environment.jersey().register(
             new AudioResource(
                     s3Client,
                     bucketName,
                     audioFeaturesFirehose,
+                    audioFeaturesFirehoseStreamName,
                     configuration.getDebug(),
                     audioMetaDataLogger,
                     senseKeyStore,

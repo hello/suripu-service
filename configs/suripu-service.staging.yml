@@ -138,7 +138,9 @@ aws_access_secret_s3: s1Lnfc1eDdPGcQnFiWDPKuX7efjxW2CVMDSfxNNb
 
 ring_duration_sec: 240
 
-audio_features_firehose: audio_features_firehose
+audio_features_firehose:
+  endpoint: firehose.us-east-1.amazonaws.com
+  stream_name: audio_features_firehose
 
 dynamodb:
   region: us-east-1

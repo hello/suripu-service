@@ -60,6 +60,7 @@ public class AudioResource extends BaseResource {
     private final DataLogger audioMetadataLogger;
     private final KeyStore keyStore;
     private final boolean debug;
+    private final String audioFeaturesFirehoseStreamName;
 
     private final ObjectMapper objectMapper;
 
@@ -68,6 +69,7 @@ public class AudioResource extends BaseResource {
             final AmazonS3Client s3Client,
             final String audioBucketName,
             final AmazonKinesisFirehoseAsync audioFeaturesFirehose,
+            final String audioFeaturesFirehoseStreamName,
             final boolean debug,
             final DataLogger audioMetadataLogger,
             final KeyStore senseKeyStore,
@@ -79,7 +81,7 @@ public class AudioResource extends BaseResource {
         this.audioMetadataLogger = audioMetadataLogger;
         this.keyStore = senseKeyStore;
         this.groupFlipper = groupFlipper;
-
+        this.audioFeaturesFirehoseStreamName = audioFeaturesFirehoseStreamName;
         objectMapper = new ObjectMapper();
     }
 
@@ -156,6 +158,7 @@ public class AudioResource extends BaseResource {
             final String jsonPayload = objectMapper.writeValueAsString(simpleMatrix);
 
             final PutRecordRequest request = new PutRecordRequest()
+                    .withDeliveryStreamName(audioFeaturesFirehoseStreamName)
                     .withRecord(new Record().
                             withData(ByteBuffer.wrap(jsonPayload.getBytes())));
 

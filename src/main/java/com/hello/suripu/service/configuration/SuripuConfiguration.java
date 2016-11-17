@@ -98,14 +98,6 @@ public class SuripuConfiguration extends Configuration {
 
     @Valid
     @NotNull
-    @JsonProperty("audio_features_firehose")
-    private String audioFeaturesFirehose;
-    public String getAudioFeaturesFirehose() {
-        return this.audioFeaturesFirehose;
-    }
-
-    @Valid
-    @NotNull
     @JsonProperty("dynamodb")
     private NewDynamoDBConfiguration dynamoDBConfiguration;
 
@@ -126,4 +118,12 @@ public class SuripuConfiguration extends Configuration {
     @JsonProperty("kinesis_client_configuration")
     private AWSClientConfiguration kinesisClientConfiguration;
     public AWSClientConfiguration getKinesisClientConfiguration() { return kinesisClientConfiguration; }
+
+    @Valid
+    @NotNull
+    @JsonProperty("audio_features_firehose")
+    private FirehoseConfiguration audioFeaturesFirehoseConfiguration;
+    public FirehoseConfiguration getAudioFirehoseConfiguration() {
+        return audioFeaturesFirehoseConfiguration;
+    }
 }
