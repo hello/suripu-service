@@ -166,7 +166,7 @@ public class AudioResource extends BaseResource {
             audioFeaturesFirehose.putRecordAsync(request, new AsyncHandler<PutRecordRequest, PutRecordResult>() {
                 @Override
                 public void onError(Exception exception) {
-                    LOGGER.error("endpoint=keyword-features error=failed-to-write-to-audioFeaturesFirehose sense_id={} ip_address={} message={}", senseId, ipAddress, error.get().message);
+                    LOGGER.error("endpoint=keyword-features error=failed-to-write-to-audioFeaturesFirehose sense_id={} ip_address={} message={}", senseId, ipAddress, exception.getMessage());
                 }
 
                 @Override
@@ -176,8 +176,8 @@ public class AudioResource extends BaseResource {
             });
 
 
-        } catch (IOException e) {
-            LOGGER.error("endpoint=keyword-features error=fail-convert-to-json sense_id={} ip_address={} message={}", senseId, ipAddress, error.get().message);
+        } catch (IOException exception) {
+            LOGGER.error("endpoint=keyword-features error=fail-convert-to-json sense_id={} ip_address={} message={}", senseId, ipAddress, exception.getMessage());
         }
 
 
