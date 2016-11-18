@@ -18,7 +18,7 @@ public class SimpeMatrixJsonTest {
         byte [] bytes1 = {0x00,0x01,0x02};
         byte [] bytes2 = {0x03,0x04,0x05,0x06};
 
-        final SimpleMatrixProtos.SimpleMatrix protbuf =
+        final SimpleMatrixProtos.SimpleMatrix protobuf =
                 SimpleMatrixProtos.SimpleMatrix.newBuilder()
                 .setDataType(SimpleMatrixProtos.SimpleMatrixDataType.SINT8)
                 .addPayload(ByteString.copyFrom(bytes1))
@@ -29,7 +29,7 @@ public class SimpeMatrixJsonTest {
                 .build();
 
 
-        final SimpleMatrix simpleMatrixJsonModel = SimpleMatrix.createFromProtobuf(protbuf,42l);
+        final SimpleMatrix simpleMatrixJsonModel = SimpleMatrix.createFromProtobuf(protobuf,42l);
 
         TestCase.assertEquals(simpleMatrixJsonModel.dataType,Integer.valueOf(0));
         TestCase.assertEquals(simpleMatrixJsonModel.numCols,Integer.valueOf(40));
