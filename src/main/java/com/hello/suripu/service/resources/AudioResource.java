@@ -1,8 +1,14 @@
 package com.hello.suripu.service.resources;
 
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.kinesisfirehose.AmazonKinesisFirehoseAsync;
+import com.amazonaws.services.kinesisfirehose.model.PutRecordRequest;
+import com.amazonaws.services.kinesisfirehose.model.PutRecordResult;
+import com.amazonaws.services.kinesisfirehose.model.Record;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.codahale.metrics.annotation.Timed;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
@@ -17,8 +23,10 @@ import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.coredropwizard.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
+import com.hello.suripu.service.models.SimpleMatrix;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +39,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,26 +57,34 @@ public class AudioResource extends BaseResource {
 
     private final AmazonS3Client s3Client;
     private final String audioBucketName;
-    private final DataLogger dataLogger;
+    private final AmazonKinesisFirehoseAsync audioFeaturesFirehose;
     private final DataLogger audioMetadataLogger;
     private final KeyStore keyStore;
     private final boolean debug;
+    private final String audioFeaturesFirehoseStreamName;
+
+    private final ObjectMapper objectMapper;
+
 
     public AudioResource(
             final AmazonS3Client s3Client,
             final String audioBucketName,
-            final DataLogger dataLogger,
+            final AmazonKinesisFirehoseAsync audioFeaturesFirehose,
+            final String audioFeaturesFirehoseStreamName,
             final boolean debug,
             final DataLogger audioMetadataLogger,
             final KeyStore senseKeyStore,
-            final GroupFlipper groupFlipper) {
+            final GroupFlipper groupFlipper,
+            final ObjectMapper objectMapper) {
         this.s3Client = s3Client;
         this.audioBucketName = audioBucketName;
-        this.dataLogger = dataLogger;
+        this.audioFeaturesFirehose = audioFeaturesFirehose;
         this.debug = debug;
         this.audioMetadataLogger = audioMetadataLogger;
         this.keyStore = senseKeyStore;
         this.groupFlipper = groupFlipper;
+        this.audioFeaturesFirehoseStreamName = audioFeaturesFirehoseStreamName;
+        this.objectMapper = objectMapper;
     }
 
     @POST
@@ -137,8 +154,32 @@ public class AudioResource extends BaseResource {
         }
 
         //insert into kinesis stream
-        dataLogger.put(senseId, signedMessage.body);
+        try {
+            final SimpleMatrix simpleMatrix = SimpleMatrix.createFromProtobuf(message, DateTime.now().getMillis());
 
+            final String jsonPayload = objectMapper.writeValueAsString(simpleMatrix);
+
+            final PutRecordRequest request = new PutRecordRequest()
+                    .withDeliveryStreamName(audioFeaturesFirehoseStreamName)
+                    .withRecord(new Record().
+                            withData(ByteBuffer.wrap(jsonPayload.getBytes())));
+
+            audioFeaturesFirehose.putRecordAsync(request, new AsyncHandler<PutRecordRequest, PutRecordResult>() {
+                @Override
+                public void onError(Exception exception) {
+                    LOGGER.error("endpoint=keyword-features error=failed-to-write-to-audioFeaturesFirehose sense_id={} ip_address={} message={}", senseId, ipAddress, exception.getMessage());
+                }
+
+                @Override
+                public void onSuccess(PutRecordRequest request, PutRecordResult putRecordResult) {
+                    //oh goody, I got my data put
+                }
+            });
+
+
+        } catch (IOException exception) {
+            LOGGER.error("endpoint=keyword-features error=fail-convert-to-json sense_id={} ip_address={} message={}", senseId, ipAddress, exception.getMessage());
+        }
     }
 
     @POST
@@ -173,7 +214,8 @@ public class AudioResource extends BaseResource {
             throwPlainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
-        dataLogger.put(deviceId, signedMessage.body);
+        //DO NOTHING!
+        //dataLogger.put(deviceId, signedMessage.body);
     }
 
 

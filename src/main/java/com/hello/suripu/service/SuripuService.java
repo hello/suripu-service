@@ -8,6 +8,8 @@ import com.amazonaws.metrics.AwsSdkMetrics;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
+import com.amazonaws.services.kinesisfirehose.AmazonKinesisFirehoseAsync;
+import com.amazonaws.services.kinesisfirehose.AmazonKinesisFirehoseAsyncClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.codahale.metrics.graphite.Graphite;
@@ -372,15 +374,26 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final DataLogger audioDataLogger = kinesisLoggerFactory.get(QueueName.AUDIO_FEATURES);
         final DataLogger audioMetaDataLogger = kinesisLoggerFactory.get(QueueName.ENCODE_AUDIO);
+
+        //TODO optimize client configuration for this based on our use case
+        // (noting that on firmware we are rate limited to 2 per 5 minutes per sense,
+        // and an upload might happen  maybe only 100 times a day)
+        final AmazonKinesisFirehoseAsync audioFeaturesFirehose = new AmazonKinesisFirehoseAsyncClient(awsCredentialsProvider)
+                .withEndpoint(configuration.getAudioFirehoseConfiguration().getEndpoint());
+
+        final String audioFeaturesFirehoseStreamName = configuration.getAudioFirehoseConfiguration().getStreamName();
+
         environment.jersey().register(
             new AudioResource(
                     s3Client,
                     bucketName,
-                    audioDataLogger,
+                    audioFeaturesFirehose,
+                    audioFeaturesFirehoseStreamName,
                     configuration.getDebug(),
                     audioMetaDataLogger,
                     senseKeyStore,
-                    groupFlipper));
+                    groupFlipper,
+                    environment.getObjectMapper()));
 
         // Manage the lifecycle of our clients
         environment.lifecycle().manage(new DynamoDBClientManaged(senseKeyStoreDynamoDBClient));
