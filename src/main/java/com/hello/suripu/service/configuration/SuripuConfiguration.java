@@ -118,4 +118,12 @@ public class SuripuConfiguration extends Configuration {
     @JsonProperty("kinesis_client_configuration")
     private AWSClientConfiguration kinesisClientConfiguration;
     public AWSClientConfiguration getKinesisClientConfiguration() { return kinesisClientConfiguration; }
+
+    @Valid
+    @NotNull
+    @JsonProperty("audio_features_firehose")
+    private FirehoseConfiguration audioFeaturesFirehoseConfiguration;
+    public FirehoseConfiguration getAudioFirehoseConfiguration() {
+        return audioFeaturesFirehoseConfiguration;
+    }
 }
