@@ -12,11 +12,11 @@
         <dropwizard.version>1.0.0</dropwizard.version>
         <jackson.version>2.8.1</jackson.version>
         <java.version>1.8</java.version>
-        <jodatime.version>2.9.4</jodatime.version>
+        <jodatime.version>2.9.6</jodatime.version>
         <librato.reporter.version>2.2.0.5</librato.reporter.version>
         <metrics.version>3.1.2</metrics.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <suripu.version>0.8.5789</suripu.version>
+        <suripu.version>0.8.5831</suripu.version>
     </properties>
 
     <distributionManagement>
