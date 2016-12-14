@@ -110,6 +110,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
     public static void main(final String[] args) throws Exception {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         DateTimeZone.setDefault(DateTimeZone.UTC);
+        java.security.Security.setProperty("networkaddress.cache.ttl", "5");
         new SuripuService().run(args);
     }
 
