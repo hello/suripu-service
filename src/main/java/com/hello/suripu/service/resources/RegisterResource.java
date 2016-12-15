@@ -37,6 +37,7 @@ import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
+import org.skife.jdbi.v2.exceptions.DBIException;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -350,6 +351,15 @@ public class RegisterResource extends BaseResource {
                 builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
                 builder.setError(SenseCommandProtos.ErrorType.DEVICE_ALREADY_PAIRED);
             }
+        } catch (DBIException e) {
+            LOGGER.error("action={} error=db-fail sense_id={} message={}", action, senseId, e.getMessage());
+            LOGGER.error("error=db-down message={}", e.getMessage());
+            builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
+            builder.setError(SenseCommandProtos.ErrorType.SERVER_CONNECTION_TIMEOUT);
+        } catch (Exception e) {
+            LOGGER.error("action={} error=register-fail sense_id={} message={}", action, senseId, e.getMessage());
+            builder.setType(MorpheusCommand.CommandType.MORPHEUS_COMMAND_ERROR);
+            builder.setError(SenseCommandProtos.ErrorType.INTERNAL_OPERATION_FAILED);
         }
 
         try {
