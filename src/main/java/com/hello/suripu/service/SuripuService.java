@@ -127,6 +127,10 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final DBIFactory factory = new DBIFactory();
         final DBI commonDB = factory.build(environment, configuration.getCommonDB(), "postgresql");
 
+        // The environment adds a healthcheck but we don't want this DB to
+        // take out our servers out of rotation since db queries represent barely 0.01% of our queries.
+        environment.healthChecks().unregister("postgresql");
+
         commonDB.registerArgumentFactory(new JodaArgumentFactory());
         commonDB.registerContainerFactory(new OptionalContainerFactory());
         commonDB.registerArgumentFactory(new PostgresIntegerArrayArgumentFactory());
