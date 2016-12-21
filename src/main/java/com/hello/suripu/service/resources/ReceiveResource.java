@@ -1,16 +1,15 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.TextFormat;
-
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.audio.AudioFeaturesControlProtos;
@@ -61,7 +60,6 @@ import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
-
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -69,14 +67,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -87,6 +77,13 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -595,7 +592,10 @@ public class ReceiveResource extends BaseResource {
 
             if (i == batch.getDataCount() - 1) {
                 final Optional<Calibration> calibrationOptional = this.hasCalibrationEnabled(deviceName) ? calibrationDAO.get(deviceName) : Optional.<Calibration>absent();
-
+                if(calibrationOptional.isPresent()) {
+                    responseBuilder.setLightsOffThreshold(calibrationOptional.get().lightsOutDelta());
+                    LOGGER.trace("sense_id={} lights_out_delta={}", deviceName, calibrationOptional.get().lightsOutDelta());
+                }
                 final CurrentRoomState currentRoomState = CurrentRoomState.fromRawData(data.getTemperature(), data.getHumidity(), data.getDustMax(), data.getLight(), data.getAudioPeakBackgroundEnergyDb(), data.getAudioPeakDisturbanceEnergyDb(),
                         roundedDateTime.getMillis(),
                         data.getFirmwareVersion(),
@@ -674,6 +674,8 @@ public class ReceiveResource extends BaseResource {
                     responseBuilder.setResetMcu(false); //Clear the reset MCU command since in the fw it will take precedence over the OTA
                 }
             }
+
+
 
             final AudioControlProtos.AudioControl.Builder audioControl = AudioControlProtos.AudioControl
                     .newBuilder()
