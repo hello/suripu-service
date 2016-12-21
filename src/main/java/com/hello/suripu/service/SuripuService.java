@@ -315,7 +315,11 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         // 300 sec = 5 minutes, which should maximize cache hitrate
         // TODO: add cache hitrate to metrics
-        final CalibrationDAO calibrationDAO = CalibrationDynamoDB.createWithCacheConfig(calibrationDynamoDBClient, tableNames.get(DynamoDBTableName.CALIBRATION), 300);
+        final CalibrationDAO calibrationDAO = CalibrationDynamoDB.createWithCacheConfig(
+                calibrationDynamoDBClient,
+                tableNames.get(DynamoDBTableName.CALIBRATION),
+                configuration.calibrationCacheDurationSeconds()
+        );
 
         final ReceiveResource receiveResource = new ReceiveResource(
                 senseKeyStore,
