@@ -660,6 +660,14 @@ public class ReceiveResource extends BaseResource {
                     .setRingOffsetFromNowInSecond(ringOffsetFromNowInSecond);
             responseBuilder.setAlarm(alarmBuilder.build());
             responseBuilder.setRingTimeAck(String.valueOf(nextRingTime.actualRingTimeUTC));
+
+            if(nextRingTime.fromSmartAlarm && featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.PRINT_ALARM_ACK.getFeatureName(), deviceName, Collections.EMPTY_LIST)) {
+                LOGGER.warn("action=print-smart-alarm sense_id={} actual_ring_time={} expected_ring_time={}", deviceName, nextRingTime.actualRingTimeUTC, nextRingTime.expectedRingTimeUTC);
+            }
+
+
+
+
             // End generate protobuf for alarm
 
             if (featureFlipper.deviceFeatureActive(FeatureFlipper.ENABLE_OTA_UPDATES, deviceName, groups)) {
