@@ -625,9 +625,22 @@ public class ReceiveResource extends BaseResource {
 
         final Optional<DateTimeZone> userTimeZone = getUserTimeZone(userInfoList);
 
+        final int uptime;
+        if (batch.hasUptimeInSecond()){
+            uptime= batch.getUptimeInSecond();
+        } else {
+            uptime= 0;
+        }
+
+        final boolean hasSufficientUptime;
+        if (uptime < DateTimeConstants.SECONDS_PER_MINUTE * 30){ //smart alarm window = 30 minutes.
+            hasSufficientUptime = false;
+        } else {
+            hasSufficientUptime = true;
+        }
 
         if (userTimeZone.isPresent()) {
-            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSense(deviceName, userInfoList, DateTime.now());
+            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSense(deviceName, userInfoList, DateTime.now(), hasSufficientUptime);
 
             // WARNING: now must generated after getNextRingTimeForSense, because that function can take a long time.
             final DateTime now = Alarm.Utils.alignToMinuteGranularity(DateTime.now().withZone(userTimeZone.get()));
