@@ -817,7 +817,14 @@ public class ReceiveResource extends BaseResource {
     public static boolean shouldLogAlarmActions(final DateTime now, final RingTime nextRingTime, final Integer actionTimeBufferMins) {
 
         if(nextRingTime.isEmpty()) {
-            LOGGER.info("action=not-logging-action reason=ringtime-empty");
+            return false;
+        }
+
+        if(nextRingTime.expansions == null) {
+            return false;
+        }
+
+        if (nextRingTime.expansions.isEmpty()) {
             return false;
         }
 
@@ -829,16 +836,6 @@ public class ReceiveResource extends BaseResource {
         // (Now - 1 min) gives us one extra minute AFTER the ringtime to log alarm actions
         if(now.minusMinutes(1).isAfter(nextRingTime.actualRingTimeUTC)) {
             LOGGER.info("action=not-logging-action reason=after-ringtime actual_ring_time={}", nextRingTime.actualRingTimeUTC);
-            return false;
-        }
-
-        if(nextRingTime.expansions == null) {
-            LOGGER.info("action=not-logging-action reason=expansions-null actual_ring_time={}", nextRingTime.actualRingTimeUTC);
-            return false;
-        }
-
-        if (nextRingTime.expansions.isEmpty()) {
-            LOGGER.info("action=not-logging-action reason=expansions-empty actual_ring_time={}", nextRingTime.actualRingTimeUTC);
             return false;
         }
 
