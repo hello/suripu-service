@@ -103,6 +103,7 @@ public class ReceiveResource extends BaseResource {
     private static final String FW_VERSION_0_9_22_RC7 = "1530439804";
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
     private static final Integer ALARM_ACTIONS_WINDOW_MINS = 60;
+    private static final Integer RING_UPTIME_THRESHOLD = 30; //mins
     private final int ringDurationSec;
 
     private final KeyStore keyStore;
@@ -633,7 +634,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         final boolean hasSufficientUptime;
-        if (uptime < DateTimeConstants.SECONDS_PER_MINUTE * 30){ //smart alarm window = 30 minutes.
+        if (uptime < DateTimeConstants.SECONDS_PER_MINUTE * RING_UPTIME_THRESHOLD){ //smart alarm window = 30 minutes.
             hasSufficientUptime = false;
         } else {
             hasSufficientUptime = true;
@@ -675,6 +676,7 @@ public class ReceiveResource extends BaseResource {
             responseBuilder.setRingTimeAck(String.valueOf(nextRingTime.actualRingTimeUTC));
 
             if(nextRingTime.fromSmartAlarm && featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.PRINT_ALARM_ACK.getFeatureName(), deviceName, Collections.EMPTY_LIST)) {
+                LOGGER.warn("action=print-sense-uptime sense_id={} uptime={} hasSufficientUptime={}",deviceName, uptime, hasSufficientUptime);
                 LOGGER.warn("action=print-smart-alarm sense_id={} actual_ring_time={} expected_ring_time={}", deviceName, nextRingTime.actualRingTimeUTC, nextRingTime.expectedRingTimeUTC);
             }
 
