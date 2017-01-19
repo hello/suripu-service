@@ -155,7 +155,7 @@ dynamodb:
     ota_history : ota_history
     ota_file_settings : ota_file_settings
     pill_key_store : pill_key_store
-    ring_time_history: ring_time_history_by_account
+    ring_time_history: ring_history_by_account
     sense_key_store : key_store
     sense_state: sense_state
     swap_intents: swap_intents

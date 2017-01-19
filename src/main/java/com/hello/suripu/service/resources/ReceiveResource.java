@@ -676,7 +676,6 @@ public class ReceiveResource extends BaseResource {
             responseBuilder.setRingTimeAck(String.valueOf(nextRingTime.actualRingTimeUTC));
 
             if(nextRingTime.fromSmartAlarm && featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.PRINT_ALARM_ACK.getFeatureName(), deviceName, Collections.EMPTY_LIST)) {
-                LOGGER.warn("action=print-sense-uptime sense_id={} uptime={} hasSufficientUptime={}",deviceName, uptime, hasSufficientUptime);
                 LOGGER.warn("action=print-smart-alarm sense_id={} actual_ring_time={} expected_ring_time={}", deviceName, nextRingTime.actualRingTimeUTC, nextRingTime.expectedRingTimeUTC);
             }
 
