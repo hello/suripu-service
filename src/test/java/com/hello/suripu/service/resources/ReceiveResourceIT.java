@@ -4,7 +4,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-
 import com.hello.suripu.api.input.DataInputProtos;
 import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.api.input.State;
@@ -24,18 +23,16 @@ import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
 import com.librato.rollout.RolloutClient;
-
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.ws.rs.WebApplicationException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
-
-import javax.ws.rs.WebApplicationException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -80,7 +77,8 @@ public class ReceiveResourceIT extends ResourceTest {
                 calibrationDAO,
                 metricRegistry,
                 senseStateDynamoDB,
-                fileSynchronizer
+                fileSynchronizer,
+                senseEventsDAO
         );
         receiveResource.request = httpServletRequest;
         receiveResource.featureFlipper = featureFlipper;

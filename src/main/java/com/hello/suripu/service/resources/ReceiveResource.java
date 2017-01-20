@@ -27,6 +27,7 @@ import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB.ResponseCommand;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
+import com.hello.suripu.core.db.SenseEventsDAO;
 import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.firmware.FirmwareUpdate;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
@@ -133,6 +134,7 @@ public class ReceiveResource extends BaseResource {
     protected Meter otaFileResponses;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
+    private final SenseEventsDAO senseEventsDAO;
 
     @Context
     HttpServletRequest request;
@@ -151,7 +153,8 @@ public class ReceiveResource extends BaseResource {
                            final CalibrationDAO calibrationDAO,
                            final MetricRegistry metricRegistry,
                            final SenseStateDynamoDB senseStateDynamoDB,
-                           final FileSynchronizer fileSynchronizer) {
+                           final FileSynchronizer fileSynchronizer,
+                           final SenseEventsDAO senseEventsDAO) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
@@ -179,6 +182,7 @@ public class ReceiveResource extends BaseResource {
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
         this.fileSynchronizer = fileSynchronizer;
+        this.senseEventsDAO = senseEventsDAO;
     }
 
 
@@ -281,7 +285,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         final String tempSenseId = data.hasDeviceId() ? data.getDeviceId() : debugSenseId;
-        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress, hardwareVersion);
+        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress, hardwareVersion, senseEventsDAO);
     }
 
 
@@ -514,7 +518,8 @@ public class ReceiveResource extends BaseResource {
                                         final DataInputProtos.batched_periodic_data batch,
                                         final List<UserInfo> userInfoList,
                                         final String ipAddress,
-                                        final HardwareVersion hardwareVersion) {
+                                        final HardwareVersion hardwareVersion,
+                                        final SenseEventsDAO senseEventsDAO) {
         // TODO: Warning, since we query dynamoDB based on user input, the user can generate a lot of
         // requests to break our bank(Assume that Dynamo DB never goes down).
         // May be we should somehow cache these data to reduce load & cost.
@@ -641,7 +646,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         if (userTimeZone.isPresent()) {
-            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSense(deviceName, userInfoList, DateTime.now(), hasSufficientUptime);
+            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSense(deviceName, userInfoList, DateTime.now(), hasSufficientUptime, senseEventsDAO);
 
             // WARNING: now must generated after getNextRingTimeForSense, because that function can take a long time.
             final DateTime now = Alarm.Utils.alignToMinuteGranularity(DateTime.now().withZone(userTimeZone.get()));
