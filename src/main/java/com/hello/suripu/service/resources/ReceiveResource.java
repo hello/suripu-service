@@ -741,7 +741,7 @@ public class ReceiveResource extends BaseResource {
                         .setDeviceId(deviceName)
                         .setUnixTime(now.getMillis() / 1000)
                         .setServiceType(ExpansionProtos.ServiceType.valueOf(expansion.serviceName))
-                        .setExpectedRingtimeUtc(nextRingTime.expectedRingTimeUTC)
+                        .setExpectedRingtimeUtc(nextRingTime.actualRingTimeUTC)
                         .setTargetValueMin(expansion.targetValue.min)
                         .setTargetValueMax(expansion.targetValue.max);
 
@@ -831,11 +831,31 @@ public class ReceiveResource extends BaseResource {
     }
 
     public static boolean shouldLogAlarmActions(final DateTime now, final RingTime nextRingTime, final Integer actionTimeBufferMins) {
-        return now.plusMinutes(actionTimeBufferMins).isAfter(nextRingTime.actualRingTimeUTC) &&
-            !now.isAfter(nextRingTime.actualRingTimeUTC) &&
-            !nextRingTime.isEmpty() &&
-            nextRingTime.expansions != null &&
-            !nextRingTime.expansions.isEmpty();
+
+        if(nextRingTime.isEmpty()) {
+            return false;
+        }
+
+        if(nextRingTime.expansions == null) {
+            return false;
+        }
+
+        if (nextRingTime.expansions.isEmpty()) {
+            return false;
+        }
+
+        //If now + buffer is NOT after actualRingTime, then we must be more than the buffer time before the ring time
+        if (!now.plusMinutes(actionTimeBufferMins).isAfter(nextRingTime.actualRingTimeUTC) ) {
+            LOGGER.info("action=not-logging-action reason=before-buffer actual_ring_time={}", nextRingTime.actualRingTimeUTC);
+            return false;
+        }
+        // (Now - 1 min) gives us one extra minute AFTER the ringtime to log alarm actions
+        if(now.minusMinutes(1).isAfter(nextRingTime.actualRingTimeUTC)) {
+            LOGGER.info("action=not-logging-action reason=after-ringtime actual_ring_time={}", nextRingTime.actualRingTimeUTC);
+            return false;
+        }
+
+        return true;
     }
 
     public static int computeNextUploadInterval(final RingTime nextRingTime, final DateTime now, final SenseUploadConfiguration senseUploadConfiguration, final Boolean isIncreasedInterval){
