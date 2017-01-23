@@ -638,15 +638,16 @@ public class ReceiveResource extends BaseResource {
             uptime= 0;
         }
 
-        final boolean hasSufficientUptime;
-        if (uptime < DateTimeConstants.SECONDS_PER_MINUTE * RING_UPTIME_THRESHOLD){ //smart alarm window = 30 minutes.
-            hasSufficientUptime = false;
-        } else {
-            hasSufficientUptime = true;
+        boolean hasSufficientUptime = true ;
+        if (featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SMART_ALARM_SAFEGAURD.getFeatureName(), deviceName, Collections.EMPTY_LIST)) {
+            if (uptime < DateTimeConstants.SECONDS_PER_MINUTE * RING_UPTIME_THRESHOLD) { //smart alarm window = 30 minutes.
+                hasSufficientUptime = false;
+            }
         }
-
         if (userTimeZone.isPresent()) {
-            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSense(deviceName, userInfoList, DateTime.now(), hasSufficientUptime, senseEventsDAO);
+
+            final boolean useFutureAlarm = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FUTURE_ALARM_ENABLED.getFeatureName(), deviceName, groups);
+            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSenseWithFutureAlarm(deviceName, userInfoList, DateTime.now(), hasSufficientUptime, senseEventsDAO, useFutureAlarm);
 
             // WARNING: now must generated after getNextRingTimeForSense, because that function can take a long time.
             final DateTime now = Alarm.Utils.alignToMinuteGranularity(DateTime.now().withZone(userTimeZone.get()));
@@ -822,7 +823,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         return state.getAudioState().getPlayingAudio();
-    }
+    } 
 
     public static boolean shouldWriteRingTimeHistory(final DateTime now, final RingTime nextRingTime, final int uploadIntervalInMinutes) {
         return now.plusMinutes(uploadIntervalInMinutes).isBefore(nextRingTime.actualRingTimeUTC) == false &&  // now + upload_cycle >= next_ring
