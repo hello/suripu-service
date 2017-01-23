@@ -1,16 +1,15 @@
 package com.hello.suripu.service.resources;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.annotation.Timed;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.TextFormat;
-
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.annotation.Timed;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
 import com.hello.suripu.api.audio.AudioFeaturesControlProtos;
@@ -28,6 +27,7 @@ import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB.ResponseCommand;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
+import com.hello.suripu.core.db.SenseEventsDAO;
 import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.firmware.FirmwareUpdate;
 import com.hello.suripu.core.firmware.FirmwareUpdateStore;
@@ -61,7 +61,6 @@ import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
-
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -69,14 +68,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -87,6 +78,13 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -106,6 +104,7 @@ public class ReceiveResource extends BaseResource {
     private static final String FW_VERSION_0_9_22_RC7 = "1530439804";
     private static final Integer CLOCK_SYNC_SPECIAL_OTA_UPTIME_MINS = 15;
     private static final Integer ALARM_ACTIONS_WINDOW_MINS = 60;
+    private static final Integer RING_UPTIME_THRESHOLD = 30; //mins
     private final int ringDurationSec;
 
     private final KeyStore keyStore;
@@ -135,6 +134,7 @@ public class ReceiveResource extends BaseResource {
     protected Meter otaFileResponses;
     protected Histogram drift;
     private final CalibrationDAO calibrationDAO;
+    private final SenseEventsDAO senseEventsDAO;
 
     @Context
     HttpServletRequest request;
@@ -153,7 +153,8 @@ public class ReceiveResource extends BaseResource {
                            final CalibrationDAO calibrationDAO,
                            final MetricRegistry metricRegistry,
                            final SenseStateDynamoDB senseStateDynamoDB,
-                           final FileSynchronizer fileSynchronizer) {
+                           final FileSynchronizer fileSynchronizer,
+                           final SenseEventsDAO senseEventsDAO) {
 
         this.keyStore = keyStore;
         this.kinesisLoggerFactory = kinesisLoggerFactory;
@@ -181,6 +182,7 @@ public class ReceiveResource extends BaseResource {
         this.calibrationDAO = calibrationDAO;
         this.senseStateDynamoDB = senseStateDynamoDB;
         this.fileSynchronizer = fileSynchronizer;
+        this.senseEventsDAO = senseEventsDAO;
     }
 
 
@@ -283,7 +285,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         final String tempSenseId = data.hasDeviceId() ? data.getDeviceId() : debugSenseId;
-        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress, hardwareVersion);
+        return generateSyncResponse(tempSenseId, data.getFirmwareVersion(), optionalKeyBytes.get(), data, userInfoList, ipAddress, hardwareVersion, senseEventsDAO);
     }
 
 
@@ -516,7 +518,8 @@ public class ReceiveResource extends BaseResource {
                                         final DataInputProtos.batched_periodic_data batch,
                                         final List<UserInfo> userInfoList,
                                         final String ipAddress,
-                                        final HardwareVersion hardwareVersion) {
+                                        final HardwareVersion hardwareVersion,
+                                        final SenseEventsDAO senseEventsDAO) {
         // TODO: Warning, since we query dynamoDB based on user input, the user can generate a lot of
         // requests to break our bank(Assume that Dynamo DB never goes down).
         // May be we should somehow cache these data to reduce load & cost.
@@ -628,9 +631,23 @@ public class ReceiveResource extends BaseResource {
 
         final Optional<DateTimeZone> userTimeZone = getUserTimeZone(userInfoList);
 
+        final int uptime;
+        if (batch.hasUptimeInSecond()){
+            uptime= batch.getUptimeInSecond();
+        } else {
+            uptime= 0;
+        }
 
+        boolean hasSufficientUptime = true ;
+        if (featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.SMART_ALARM_SAFEGAURD.getFeatureName(), deviceName, Collections.EMPTY_LIST)) {
+            if (uptime < DateTimeConstants.SECONDS_PER_MINUTE * RING_UPTIME_THRESHOLD) { //smart alarm window = 30 minutes.
+                hasSufficientUptime = false;
+            }
+        }
         if (userTimeZone.isPresent()) {
-            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSense(deviceName, userInfoList, DateTime.now());
+
+            final boolean useFutureAlarm = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FUTURE_ALARM_ENABLED.getFeatureName(), deviceName, groups);
+            final RingTime nextRingTime = RingProcessor.getNextRingTimeForSenseWithFutureAlarm(deviceName, userInfoList, DateTime.now(), hasSufficientUptime, senseEventsDAO, useFutureAlarm);
 
             // WARNING: now must generated after getNextRingTimeForSense, because that function can take a long time.
             final DateTime now = Alarm.Utils.alignToMinuteGranularity(DateTime.now().withZone(userTimeZone.get()));
@@ -806,7 +823,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         return state.getAudioState().getPlayingAudio();
-    }
+    } 
 
     public static boolean shouldWriteRingTimeHistory(final DateTime now, final RingTime nextRingTime, final int uploadIntervalInMinutes) {
         return now.plusMinutes(uploadIntervalInMinutes).isBefore(nextRingTime.actualRingTimeUTC) == false &&  // now + upload_cycle >= next_ring

@@ -39,6 +39,8 @@ import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.db.OTAHistoryDAODynamoDB;
 import com.hello.suripu.core.db.ResponseCommandsDAODynamoDB;
 import com.hello.suripu.core.db.RingTimeHistoryDAODynamoDB;
+import com.hello.suripu.core.db.SenseEventsDAO;
+import com.hello.suripu.core.db.SenseEventsDynamoDB;
 import com.hello.suripu.core.db.SenseStateDynamoDB;
 import com.hello.suripu.core.db.TeamStore;
 import com.hello.suripu.core.db.util.JodaArgumentFactory;
@@ -300,6 +302,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AmazonDynamoDB fileManifestDynamoDBClient = dynamoDBFactory.getForTable(DynamoDBTableName.FILE_MANIFEST);
         final FileManifestDAO fileManifestDAO = new FileManifestDynamoDB(fileManifestDynamoDBClient, tableNames.get(DynamoDBTableName.FILE_MANIFEST));
 
+        final AmazonDynamoDB senseEventsDBClient = dynamoDBFactory.getInstrumented(DynamoDBTableName.SENSE_EVENTS, SenseEventsDAO.class);
+        final SenseEventsDAO senseEventsDAO = new SenseEventsDynamoDB(senseEventsDBClient, tableNames.get(DynamoDBTableName.SENSE_EVENTS));
 
         final RolloutModule module = new RolloutModule(featureStore, 30);
         ObjectGraphRoot.getInstance().init(module);
@@ -336,7 +340,9 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 calibrationDAO,
                 environment.metrics(),
                 senseStateDynamoDB,
-                FileSynchronizer.create(fileInfoDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L) // TODO move to config
+                FileSynchronizer.create(fileInfoDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L),
+                senseEventsDAO
+                // TODO move to config
         );
 
 
