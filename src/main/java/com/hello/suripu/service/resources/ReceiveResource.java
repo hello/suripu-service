@@ -947,7 +947,12 @@ public class ReceiveResource extends BaseResource {
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("error=signature-failed sense_id={} ip_address={} message={}", batchPilldata.getDeviceId(), ipAddress, error.get().message);
+            // Only log this if this sense is voluntarily disabled
+            if(featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.DISABLED_SENSE.getFeatureName(), batchPilldata.getDeviceId(), Collections.EMPTY_LIST)) {
+                LOGGER.info("action=disable-sense sense_id={} ip_address={}", batchPilldata.getDeviceId(), ipAddress);
+            } else {
+                LOGGER.error("error=signature-failed sense_id={} ip_address={} message={}", batchPilldata.getDeviceId(), ipAddress, error.get().message);
+            }
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
