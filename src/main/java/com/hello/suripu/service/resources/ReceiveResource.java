@@ -244,7 +244,13 @@ public class ReceiveResource extends BaseResource {
         final Optional<SignedMessage.Error> error = signedMessage.validateWithKey(optionalKeyBytes.get());
 
         if (error.isPresent()) {
-            LOGGER.error("error=signature-failed sense_id={} ip_address={} message={}", deviceId, ipAddress, error.get().message);
+            // Only log this if this sense is voluntarily disabled
+            if(featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.DISABLED_SENSE.getFeatureName(), deviceId, groups)) {
+                LOGGER.info("action=disable-sense sense_id={} ip_address={}", deviceId, ipAddress);
+            } else {
+                LOGGER.error("error=signature-failed sense_id={} ip_address={} message={}", deviceId, ipAddress, error.get().message);
+            }
+
             return plainTextError(Response.Status.UNAUTHORIZED, "");
         }
 
@@ -527,6 +533,7 @@ public class ReceiveResource extends BaseResource {
         final OutputProtos.SyncResponse.Builder responseBuilder = OutputProtos.SyncResponse.newBuilder();
 
         final List<String> groups = groupFlipper.getGroups(deviceName);
+
         Boolean deviceHasOutOfSyncClock = false;
         final Integer numMessagesInQueue = (batch.hasMessagesInQueue()) ? batch.getMessagesInQueue() : 0;
 
@@ -785,7 +792,14 @@ public class ReceiveResource extends BaseResource {
         final OutputProtos.SyncResponse syncResponse = responseBuilder.build();
 
         LOGGER.debug("Len pb = {}", syncResponse.toByteArray().length);
+        return signResponse(syncResponse, encryptionKey, deviceName);
+    }
 
+    /**
+     * Serialize and sign protobuf
+     * @return
+     */
+    private byte[] signResponse(final OutputProtos.SyncResponse syncResponse, final byte[] encryptionKey, final String senseId) {
         final Optional<byte[]> signedResponse = SignedMessage.sign(syncResponse.toByteArray(), encryptionKey);
         if (!signedResponse.isPresent()) {
             LOGGER.error("Failed signing message");
@@ -794,7 +808,7 @@ public class ReceiveResource extends BaseResource {
 
         final int responseLength = signedResponse.get().length;
         if (responseLength > 2048) {
-            LOGGER.warn("error=response-size-too-large size={} sense_id={}", responseLength, deviceName);
+            LOGGER.warn("error=response-size-too-large size={} sense_id={}", responseLength, senseId);
         }
 
         return signedResponse.get();

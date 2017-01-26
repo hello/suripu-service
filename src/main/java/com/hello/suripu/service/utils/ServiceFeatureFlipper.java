@@ -13,7 +13,8 @@ public enum ServiceFeatureFlipper {
     IS_SENSE_ONE_FIVE_DVT_UNIT("is_sense_one_five_dvt_unit"),
     PRINT_ALARM_ACK("print_alarm_ack"),
     FUTURE_ALARM_ENABLED("future_alarm_enabled"), //logic fix - only look at future alarm when getting next alarm
-    SMART_ALARM_SAFEGAURD("smart_alarm_safeguard");
+    SMART_ALARM_SAFEGAURD("smart_alarm_safeguard"),
+    DISABLED_SENSE("disabled_sense"); // for stolen senses
 
     private final String featureName;
     ServiceFeatureFlipper(final String name) {
