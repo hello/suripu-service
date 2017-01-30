@@ -137,6 +137,7 @@ aws_access_key_s3: AKIAJVQV7XJU23UWILSQ
 aws_access_secret_s3: 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
 
 ring_duration_sec: 240
+calibration_cache_duration_seconds: 10
 
 audio_features_firehose:
   endpoint: firehose.us-east-1.amazonaws.com
@@ -154,7 +155,8 @@ dynamodb:
     ota_history : ota_history
     ota_file_settings : ota_file_settings
     pill_key_store : pill_key_store
-    ring_time_history: ring_time_history_by_account
+    ring_time_history: ring_history_by_account
+    sense_events: sense_events
     sense_key_store : key_store
     sense_state: sense_state
     swap_intents: swap_intents
@@ -173,6 +175,7 @@ dynamodb:
       ota_file_settings : http://dynamodb.us-east-1.amazonaws.com
       pill_key_store : http://dynamodb.us-east-1.amazonaws.com
       ring_time_history: http://dynamodb.us-east-1.amazonaws.com
+      sense_events : http://dynamodb.us-east-1.amazonaws.com
       sense_key_store : http://dynamodb.us-east-1.amazonaws.com
       sense_state: http://dynamodb.us-east-1.amazonaws.com
       swap_intents: http://dynamodb.us-east-1.amazonaws.com

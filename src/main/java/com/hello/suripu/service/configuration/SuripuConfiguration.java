@@ -96,6 +96,12 @@ public class SuripuConfiguration extends Configuration {
         return this.ringDuration;
     }
 
+    @JsonProperty("calibration_cache_duration_seconds")
+    private Integer calibrationCacheDurationSeconds = 300;
+    public Integer calibrationCacheDurationSeconds() {
+        return calibrationCacheDurationSeconds;
+    }
+
     @Valid
     @NotNull
     @JsonProperty("dynamodb")
