@@ -143,6 +143,7 @@ audio_features_firehose:
 
 dynamodb:
   region: us-east-1
+  default_endpoint: http://dynamodb.us-east-1.amazonaws.com
   tables:
     alarm_info : prod_alarm_info
     calibration: prod_calibration
@@ -160,22 +161,4 @@ dynamodb:
     swap_intents: prod_swap_intents
     sync_response_commands : prod_response_commands
     teams : teams
-
-
-  endpoints:
-      alarm_info : http://dynamodb.us-east-1.amazonaws.com
-      calibration : http://dynamodb.us-east-1.amazonaws.com
-      features : http://dynamodb.us-east-1.amazonaws.com
-      file_manifest: http://dynamodb.us-east-1.amazonaws.com
-      firmware_upgrade_path : http://dynamodb.us-east-1.amazonaws.com
-      firmware_versions : http://dynamodb.us-east-1.amazonaws.com
-      ota_history : http://dynamodb.us-east-1.amazonaws.com
-      ota_file_settings: http://dynamodb.us-east-1.amazonaws.com
-      pill_key_store : http://dynamodb.us-east-1.amazonaws.com
-      ring_time_history: http://dynamodb.us-east-1.amazonaws.com
-      sense_events : http://dynamodb.us-east-1.amazonaws.com
-      sense_key_store : http://dynamodb.us-east-1.amazonaws.com
-      sense_state: http://dynamodb.us-east-1.amazonaws.com
-      swap_intents: http://dynamodb.us-east-1.amazonaws.com
-      sync_response_commands : http://dynamodb.us-east-1.amazonaws.com
-      teams : http://dynamodb.us-east-1.amazonaws.com
+  endpoints: {}
