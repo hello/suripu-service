@@ -147,6 +147,7 @@ audio_features_firehose:
 
 dynamodb:
   region: us-east-1
+  default_endpoint: http://localhost:7777
   tables:
     alarm_info : alarm_info
     calibration: calibration
@@ -164,22 +165,4 @@ dynamodb:
     swap_intents: swap_intents
     sync_response_commands : response_commands
     teams : teams
-
-
-  endpoints:
-      alarm_info : http://localhost:7777
-      calibration: http://localhost:7777
-      features : http://localhost:7777
-      file_manifest: http://localhost:7777
-      firmware_upgrade_path : http://localhost:7777
-      firmware_versions : http://localhost:7777
-      ota_history : http://localhost:7777
-      ota_file_settings: http://localhost:7777
-      pill_key_store : http://localhost:7777
-      ring_time_history: http://localhost:7777
-      sense_events: http://localhost:7777
-      sense_key_store : http://localhost:7777
-      sense_state: http://localhost:7777
-      swap_intents: http://localhost:7777
-      sync_response_commands : http://localhost:7777
-      teams : http://localhost:7777
+  endpoints: {}
