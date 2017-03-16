@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
@@ -59,6 +60,7 @@ import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.file_sync.FileManifestUtil;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
+import com.hello.suripu.service.utils.FileShaChecker;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
@@ -465,8 +467,18 @@ public class ReceiveResource extends BaseResource {
         final Boolean isInDVTList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
         if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion)) {
             fileDownloadsDisabled = true;
-            if(isInDVTList) {
+            if (isInDVTList) {
                 fileDownloadsDisabled = false; // override for DVT only
+            }
+
+            // do sha1 check here
+            for (final FileSync.FileManifest.File file : fileManifest.getFileInfoList()) {
+                final ByteString shaBytes = file.getDownloadInfo().getSha1();
+                final String pathName = String.format("/%s/%s", file.getDownloadInfo().getSdCardPath(), file.getDownloadInfo().getSdCardFilename());
+                if (!FileShaChecker.checkOK(pathName, shaBytes)) {
+                    final String shaString = Hex.encodeHexString(shaBytes.toByteArray());
+                    LOGGER.error("error=file-corruption sense_id={} path={} sha={}", senseId, pathName, shaString);
+                }
             }
         }
 
