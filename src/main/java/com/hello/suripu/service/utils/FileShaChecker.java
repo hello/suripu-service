@@ -4,11 +4,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import com.hello.suripu.api.input.FileSync;
+import com.hello.suripu.service.file_sync.FileManifestUtil;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,13 +47,33 @@ public class FileShaChecker {
         pathToShaOneMap = ImmutableMap.copyOf(secondMap);
     }
 
-    public static Boolean checkOK(final FileSync.FileManifest.FileDownload fileDownload) {
-        final ByteString sha1 = fileDownload.getSha1();
-        final String path = String.format("/%s/%s", fileDownload.getSdCardPath(), fileDownload.getSdCardFilename());
-        return checkOK(path, sha1);
+
+    /**
+     * Check the list of files for SHA mismatch (sense 1.5 only), and log failures
+     * @param senseId device external ID
+     * @param fileList list of file manifest info
+     */
+    public static void checkFileSHAForSense1p5(final String senseId, final List<FileSync.FileManifest.File> fileList) {
+        for (final FileSync.FileManifest.File fileInfo : fileList) {
+            if (fileInfo.hasDownloadInfo()) {
+
+                final FileSync.FileManifest.FileDownload downloadInfo = fileInfo.getDownloadInfo();
+                if (!checkOK(downloadInfo)) {
+                    final String shaString = Hex.encodeHexString(downloadInfo.getSha1().toByteArray());
+                    LOGGER.error("error=file-corruption sense_id={} path={} sha={}", senseId,
+                            FileManifestUtil.fullPath(downloadInfo),
+                            shaString);
+                }
+
+            }
+        }
     }
 
-    public static Boolean checkOK(final String path, final ByteString sha1) {
+    static Boolean checkOK(final FileSync.FileManifest.FileDownload fileDownload) {
+        final ByteString sha1 = fileDownload.getSha1();
+        final String path = String.format("/%s/%s", fileDownload.getSdCardPath(), fileDownload.getSdCardFilename());
         return !pathToShaOneMap.containsKey(path) || pathToShaOneMap.get(path).equals(sha1);
     }
+
+
 }

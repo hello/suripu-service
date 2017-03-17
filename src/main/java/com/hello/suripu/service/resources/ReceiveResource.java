@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 import com.hello.dropwizard.mikkusu.helpers.AdditionalMediaTypes;
 import com.hello.suripu.api.audio.AudioControlProtos;
@@ -471,15 +470,7 @@ public class ReceiveResource extends BaseResource {
                 fileDownloadsDisabled = false; // override for DVT only
             }
 
-            // do sha1 check here
-            for (final FileSync.FileManifest.File file : fileManifest.getFileInfoList()) {
-                final ByteString shaBytes = file.getDownloadInfo().getSha1();
-                final String pathName = String.format("/%s/%s", file.getDownloadInfo().getSdCardPath(), file.getDownloadInfo().getSdCardFilename());
-                if (!FileShaChecker.checkOK(pathName, shaBytes)) {
-                    final String shaString = Hex.encodeHexString(shaBytes.toByteArray());
-                    LOGGER.error("error=file-corruption sense_id={} path={} sha={}", senseId, pathName, shaString);
-                }
-            }
+            FileShaChecker.checkFileSHAForSense1p5(senseId, fileManifest.getFileInfoList());
         }
 
 
