@@ -59,6 +59,7 @@ import com.hello.suripu.service.configuration.SenseUploadConfiguration;
 import com.hello.suripu.service.file_sync.FileManifestUtil;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.models.UploadSettings;
+import com.hello.suripu.service.utils.FileShaChecker;
 import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
@@ -465,9 +466,11 @@ public class ReceiveResource extends BaseResource {
         final Boolean isInDVTList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
         if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion)) {
             fileDownloadsDisabled = true;
-            if(isInDVTList) {
+            if (isInDVTList) {
                 fileDownloadsDisabled = false; // override for DVT only
             }
+
+            FileShaChecker.checkFileSHAForSense1p5(senseId, fileManifest.getFileInfoList());
         }
 
 
