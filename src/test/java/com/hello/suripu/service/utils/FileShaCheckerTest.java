@@ -15,7 +15,7 @@ import static org.hamcrest.Matchers.is;
  * Created by ksg on 3/15/17
  */
 public class FileShaCheckerTest {
-    private static String NOCTURNE_SHA = "150267de2653815c39f7ed50b40208b8350e38b2";
+    private static String NOCTURNE_SHA = "3fa21852f29d15b3d8d8eeb0d05c6c42b7ca9041";
     private static String BAD_NOCTURNE_SHA = "7a0047a707520c717a10cc22d4e5a1e75cf87ffa";
     private static String NOCTURNE_PATH = "/SLPTONES/ST012.RAW";
 

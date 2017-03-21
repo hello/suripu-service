@@ -22,18 +22,18 @@ public class FileShaChecker {
     private static Map<String, ByteString> pathToShaOneMap;
     static {
         Map<String, String> tmpMap = Maps.newHashMap();
-        tmpMap.put("SLPTONES/ST001.RAW", "645cc06458638cd4f76ee6600644c7c8816df128");  // Brown Noise
-        tmpMap.put("SLPTONES/ST002.RAW", "33f7b6ae44aa17be3d21a635e8ec025f49f5e0a8");  // Cosmos
-        tmpMap.put("SLPTONES/ST003.RAW", "9fad8359e4590701fbfa43553fff8698055ef18f");  // Autumn Wind
-        tmpMap.put("SLPTONES/ST004.RAW", "ee9319a6109926407e6e12facdb290d87eeff205");  // Fireside
-        tmpMap.put("SLPTONES/ST005.RAW", "41d2c560745f5d61eea8dce029f3574f549fc614");  // Ocean Waves
-        tmpMap.put("SLPTONES/ST006.RAW", "a7f6a62482fab455a7bdbf34a5674900811f1cd4");  // Rainfall
-        tmpMap.put("SLPTONES/ST007.RAW", "cd93de784b6fa8358ecab0f934ee108ad486cc1b");  // White Noise
-        tmpMap.put("SLPTONES/ST008.RAW", "7a0cb6a3a31420a2ce1c0e30273718fa04a8cb93");  // Forest Creek
-        tmpMap.put("SLPTONES/ST009.RAW", "bd1e7b0c174a5888c50f8d44287934721deefb38");  // Morpheus
-        tmpMap.put("SLPTONES/ST010.RAW", "71a7638f76d92696ba47d87a64b9f6fd8568004b");  // Aura
-        tmpMap.put("SLPTONES/ST011.RAW", "75a23b1c9fea199dcf27710564e7c5d1b9454a5f");  // Horizon
-        tmpMap.put("SLPTONES/ST012.RAW", "150267de2653815c39f7ed50b40208b8350e38b2");  // Nocturne
+        tmpMap.put("SLPTONES/ST001.RAW", "7dd42ec7e55b00afbbcb2a8e129dc0fc573961eb");  // Brown Noise
+        tmpMap.put("SLPTONES/ST002.RAW", "d30817227ce93708167be1022de1f1625853ffce");  // Cosmos
+        tmpMap.put("SLPTONES/ST003.RAW", "777a25489420095ce034bd082d964fc47d9c7c78");  // Autumn Wind
+        tmpMap.put("SLPTONES/ST004.RAW", "686ab4987f6014611b1bc18872364e76ab98277d");  // Fireside
+        tmpMap.put("SLPTONES/ST005.RAW", "25f05b2302ae69c1a501989852497257a1cf31d7");  // Ocean Waves
+        tmpMap.put("SLPTONES/ST006.RAW", "128cf3d664e39667e4eabff647f8ed0cc4edd109");  // Rainfall
+        tmpMap.put("SLPTONES/ST007.RAW", "bd26a9cbbe9781852c5454706c1b04e742d72f2e");  // White Noise
+        tmpMap.put("SLPTONES/ST008.RAW", "56ac9affc489328cd14bdd35bd0c256635ab0faa");  // Forest Creek
+        tmpMap.put("SLPTONES/ST009.RAW", "a0a370f64cd543449f055f8ca666bfff40bf6620");  // Morpheus
+        tmpMap.put("SLPTONES/ST010.RAW", "f7b36fb9c4ade09397ce3135b1bd0d2c3b0cfb12");  // Aura
+        tmpMap.put("SLPTONES/ST011.RAW", "684dcf2842df76cf0409bf51c7e303bae92e25d0");  // Horizon
+        tmpMap.put("SLPTONES/ST012.RAW", "3fa21852f29d15b3d8d8eeb0d05c6c42b7ca9041");  // Nocturne
 
         final Map<String, ByteString> secondMap = Maps.newHashMap();
         for (final String path : tmpMap.keySet()) {
@@ -60,7 +60,7 @@ public class FileShaChecker {
                 final FileSync.FileManifest.FileDownload downloadInfo = fileInfo.getDownloadInfo();
                 if (!checkOK(downloadInfo)) {
                     final String shaString = Hex.encodeHexString(downloadInfo.getSha1().toByteArray());
-                    LOGGER.error("error=file-corruption sense_id={} path={} sha={}", senseId,
+                    LOGGER.error("error=file-corruption-2 sense_id={} path={} sense_sha={}", senseId,
                             FileManifestUtil.fullPath(downloadInfo),
                             shaString);
                 }
