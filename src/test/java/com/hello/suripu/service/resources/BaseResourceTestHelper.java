@@ -1,11 +1,11 @@
 package com.hello.suripu.service.resources;
 
 import com.google.common.base.Optional;
-
 import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.core.ObjectGraphRoot;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.KeyStore;
+import com.hello.suripu.core.firmware.HardwareVersion;
 import com.hello.suripu.core.logging.DataLogger;
 import com.hello.suripu.core.logging.KinesisLoggerFactory;
 import com.hello.suripu.core.oauth.ClientCredentials;
@@ -15,13 +15,11 @@ import com.hello.suripu.core.oauth.OAuthScope;
 import com.hello.suripu.core.oauth.stores.OAuthTokenStore;
 import com.hello.suripu.coredropwizard.oauth.AccessToken;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
-
 import org.joda.time.DateTime;
 import org.mockito.Mockito;
 
-import java.util.UUID;
-
 import javax.servlet.http.HttpServletRequest;
+import java.util.UUID;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
@@ -65,6 +63,6 @@ public class BaseResourceTestHelper {
     }
 
     public static void stubSynchronizeFileManifest(final FileSynchronizer synchronizer, final FileSync.FileManifest newManifest) {
-        when(synchronizer.synchronizeFileManifest(Mockito.anyString(), Mockito.any(FileSync.FileManifest.class), Mockito.anyBoolean())).thenReturn(newManifest);
+        when(synchronizer.synchronizeFileManifest(Mockito.anyString(), Mockito.any(FileSync.FileManifest.class), Mockito.anyBoolean(), Mockito.any(HardwareVersion.class))).thenReturn(newManifest);
     }
 }

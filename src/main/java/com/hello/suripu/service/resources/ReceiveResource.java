@@ -452,29 +452,27 @@ public class ReceiveResource extends BaseResource {
             }
         }
 
-
-
-        final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
-
         // Synchronize
         Boolean fileDownloadsDisabled = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, groups);
 
-        // Sense 1p5 production should not download new files
+        final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
+
+        // Original Sense 1p5 setup:
+        // Sense 1p5 production SHOULD NOT download new files
         // what you have on sense is what you should have from server
         // this is a hack because I don't have time to do the hardware version filtering properly
         // For DVT sense they will rely on the sense_file_info table to force download non public files
-        final Boolean isInDVTList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
+
         if(HardwareVersion.SENSE_ONE_FIVE.equals(hardwareVersion)) {
-            fileDownloadsDisabled = true;
-            if (isInDVTList) {
-                fileDownloadsDisabled = false; // override for DVT only
-            }
+            // Attempt to allow Sense 1p5 to re-download corrupted files: only disable if not DVT unit && not in white-list
+            final Boolean isDVT = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
+            final Boolean inWhiteList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_SENSE_1P5.getFeatureName(), senseId, groups);
+            fileDownloadsDisabled = downloadDisabledForOneFive(isDVT, inWhiteList);
 
             FileShaChecker.checkFileSHAForSense1p5(senseId, fileManifest.getFileInfoList());
         }
 
-
-        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled);
+        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled, hardwareVersion);
 
         // Mark any updates we're sending
         for (final FileSync.FileManifest.File file : newManifest.getFileInfoList()) {
@@ -496,6 +494,9 @@ public class ReceiveResource extends BaseResource {
         return signedResponse.get();
     }
 
+    static Boolean downloadDisabledForOneFive(final Boolean isDVT, final Boolean inWhiteList) {
+        return !isDVT && !inWhiteList;
+    }
 
     public static OutputProtos.SyncResponse.Builder setPillColors(final List<UserInfo> userInfoList,
                                                                   final OutputProtos.SyncResponse.Builder syncResponseBuilder) {

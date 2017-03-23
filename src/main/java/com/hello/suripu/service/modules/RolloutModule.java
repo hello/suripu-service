@@ -1,5 +1,6 @@
 package com.hello.suripu.service.modules;
 
+import com.hello.suripu.core.analytics.AnalyticsTracker;
 import com.hello.suripu.core.db.FeatureStore;
 import com.hello.suripu.core.flipper.DynamoDBAdapter;
 import com.hello.suripu.coredropwizard.resources.BaseResource;
@@ -26,10 +27,13 @@ import javax.inject.Singleton;
 public class RolloutModule {
     private final FeatureStore featureStore;
     private final Integer pollingIntervalInSeconds;
+    private final AnalyticsTracker analyticsTracker;
 
-    public RolloutModule(final FeatureStore featureStore, final Integer pollingIntervalInSeconds) {
+
+    public RolloutModule(final FeatureStore featureStore, final Integer pollingIntervalInSeconds, final AnalyticsTracker analyticsTracker) {
         this.featureStore = featureStore;
         this.pollingIntervalInSeconds = pollingIntervalInSeconds;
+        this.analyticsTracker = analyticsTracker;
     }
 
     @Provides @Singleton
@@ -41,4 +45,7 @@ public class RolloutModule {
     RolloutClient providesRolloutClient(RolloutAdapter adapter) {
         return new RolloutClient(adapter);
     }
+
+    @Provides @Singleton
+    AnalyticsTracker providesAnalyticsTracker() {return analyticsTracker;}
 }
