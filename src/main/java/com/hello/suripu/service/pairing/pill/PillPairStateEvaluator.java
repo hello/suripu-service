@@ -72,6 +72,7 @@ public class PillPairStateEvaluator {
             final String errorMessage  = String.format("Pill %s might got stolen, account %d is a theft!",request.pillId(), request.accountId());
             LOGGER.error(errorMessage);
             onboardingLogger.logFailure(Optional.fromNullable(request.pillId()), errorMessage);
+            return PairState.PAIRED_WITH_OTHER_ACCOUNT;
         }
         if(pillsPairedToCurrentAccount.size() == 1 && accountsPairedToCurrentPill.isEmpty()){
             // account already paired with a pill, only one pill is allowed

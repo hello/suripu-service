@@ -81,6 +81,8 @@ import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.modules.RolloutModule;
+import com.hello.suripu.service.pairing.PairingManager;
+import com.hello.suripu.service.pairing.SenseOrPillPairingManager;
 import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
 import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
 import com.hello.suripu.service.resources.AudioResource;
@@ -366,14 +368,19 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final PillPairStateEvaluator pillPairStateEvaluator = new PillPairStateEvaluator(deviceDAO);
         final SensePairStateEvaluator sensePairStateEvaluator = new SensePairStateEvaluator(deviceDAO, swapper);
 
+        final PairingManager pairingManager = SenseOrPillPairingManager.create(
+                deviceDAO,
+                mergedUserInfoDynamoDB,
+                pillPairStateEvaluator,
+                sensePairStateEvaluator
+        );
+
         final RegisterResource registerResource = new RegisterResource(deviceDAO,
                 tokenStore,
                 kinesisLoggerFactory,
                 senseKeyStore,
-                mergedUserInfoDynamoDB,
                 groupFlipper,
-                pillPairStateEvaluator,
-                sensePairStateEvaluator
+                pairingManager
         );
 
         environment.jersey().register(registerResource);
