@@ -453,7 +453,7 @@ public class ReceiveResource extends BaseResource {
         }
 
         // Synchronize
-        Boolean fileDownloadsDisabled = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, groups);
+        Boolean fileDownloadsEnabled = !featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_DISABLED.getFeatureName(), senseId, groups);
 
         final HardwareVersion hardwareVersion = Util.getHardwareVersionFromHeader(this.request);
 
@@ -467,12 +467,15 @@ public class ReceiveResource extends BaseResource {
             // Attempt to allow Sense 1p5 to re-download corrupted files: only disable if not DVT unit && not in white-list
             final Boolean isDVT = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.IS_SENSE_ONE_FIVE_DVT_UNIT.getFeatureName(), senseId, groups);
             final Boolean inWhiteList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_SENSE_1P5.getFeatureName(), senseId, groups);
-            fileDownloadsDisabled = downloadDisabledForOneFive(isDVT, inWhiteList);
+            fileDownloadsEnabled = downloadEnabledForOneFive(isDVT, inWhiteList);
+            if (fileDownloadsEnabled) {
+                LOGGER.debug("action=sense-1p5-file-download-enabled sense_id={}", senseId);
+            }
 
             FileShaChecker.checkFileSHAForSense1p5(senseId, fileManifest.getFileInfoList());
         }
 
-        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, !fileDownloadsDisabled, hardwareVersion);
+        final FileSync.FileManifest newManifest = fileSynchronizer.synchronizeFileManifest(senseId, fileManifest, fileDownloadsEnabled, hardwareVersion);
 
         // Mark any updates we're sending
         for (final FileSync.FileManifest.File file : newManifest.getFileInfoList()) {
@@ -494,8 +497,8 @@ public class ReceiveResource extends BaseResource {
         return signedResponse.get();
     }
 
-    static Boolean downloadDisabledForOneFive(final Boolean isDVT, final Boolean inWhiteList) {
-        return !isDVT && !inWhiteList;
+    static Boolean downloadEnabledForOneFive(final Boolean isDVT, final Boolean inWhiteList) {
+        return inWhiteList || isDVT;
     }
 
     public static OutputProtos.SyncResponse.Builder setPillColors(final List<UserInfo> userInfoList,

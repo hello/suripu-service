@@ -7,8 +7,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import com.hello.suripu.api.input.FileSync;
 import com.hello.suripu.core.db.FileInfoDAO;
-import com.hello.suripu.core.db.FileInfoOneDAO;
-import com.hello.suripu.core.db.FileInfoOneFiveDAO;
+import com.hello.suripu.core.db.FileInfoSenseOneDAO;
+import com.hello.suripu.core.db.FileInfoSenseOneFiveDAO;
 import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.firmware.HardwareVersion;
 import com.hello.suripu.core.models.FileInfo;
@@ -29,8 +29,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 public class FileSynchronizerTest {
 
-    private FileInfoDAO fileInfoOneDAO;
-    private FileInfoDAO fileInfoOneFiveDAO;
+    private FileInfoDAO fileInfoSenseOneDAO;
+    private FileInfoDAO fileInfoSenseOneFiveDAO;
     private FileManifestDAO fileManifestDAO;
     private AmazonS3 s3Signer;
 
@@ -38,14 +38,14 @@ public class FileSynchronizerTest {
 
     @Before
     public void setUp() {
-        fileInfoOneDAO = Mockito.mock(FileInfoOneDAO.class);
-        fileInfoOneFiveDAO = Mockito.mock(FileInfoOneFiveDAO.class);
+        fileInfoSenseOneDAO = Mockito.mock(FileInfoSenseOneDAO.class);
+        fileInfoSenseOneFiveDAO = Mockito.mock(FileInfoSenseOneFiveDAO.class);
         fileManifestDAO = Mockito.mock(FileManifestDAO.class);
         s3Signer = Mockito.mock(AmazonS3.class);
         final Long PRESIGNED_URL_EXPIRATION_MINUTES = 0L;
         final Long FILE_DOWNLOAD_CACHE_EXPIRATION_MINUTES = 0L;
         fileSynchronizer = FileSynchronizer.create(
-                fileInfoOneDAO, fileInfoOneFiveDAO, fileManifestDAO, s3Signer,
+                fileInfoSenseOneDAO, fileInfoSenseOneFiveDAO, fileManifestDAO, s3Signer,
                 FILE_DOWNLOAD_CACHE_EXPIRATION_MINUTES, PRESIGNED_URL_EXPIRATION_MINUTES);
     }
 
@@ -103,7 +103,7 @@ public class FileSynchronizerTest {
                 .build();
 
         Mockito.when(fileManifestDAO.updateManifest(Mockito.eq(senseId), Mockito.eq(initialManifest))).thenReturn(Optional.<FileSync.FileManifest>absent());
-        Mockito.when(fileInfoOneDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoList);
+        Mockito.when(fileInfoSenseOneDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoList);
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("noLeadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/noLeadingSlash"));
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("leadingSlash"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
@@ -168,7 +168,7 @@ public class FileSynchronizerTest {
 
         final List<FileInfo> fileInfoOneList = ImmutableList.of(senseOneFileInfo);
 
-        Mockito.when(fileInfoOneDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoOneList);
+        Mockito.when(fileInfoSenseOneDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoOneList);
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("sleep-tones-raw"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/sleep-tones-raw"));
 
@@ -205,7 +205,7 @@ public class FileSynchronizerTest {
         final List<FileInfo> fileInfoOneFiveList = ImmutableList.of(senseOneFiveFileInfo);
 
 
-        Mockito.when(fileInfoOneFiveDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoOneFiveList);
+        Mockito.when(fileInfoSenseOneFiveDAO.getAll(Mockito.anyInt(), Mockito.eq(senseId))).thenReturn(fileInfoOneFiveList);
         Mockito.when(s3Signer.generatePresignedUrl(Mockito.anyString(), Mockito.eq("sleep-tones-raw-one-five"), Mockito.any(Date.class), Mockito.any(HttpMethod.class)))
                 .thenReturn(new URL("http", "localhost", 80, "/sleep-tones-raw-one-five"));
 

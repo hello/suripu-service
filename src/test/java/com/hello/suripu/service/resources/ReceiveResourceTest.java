@@ -210,16 +210,16 @@ public class ReceiveResourceTest {
 
     @Test
     public void testSenseOneFiveDownloadStatus() {
-        boolean disabled = ReceiveResource.downloadDisabledForOneFive(false, false); // not DVT, not in white-list
-        assertThat(disabled, is(true));
+        boolean enabled = ReceiveResource.downloadEnabledForOneFive(false, false); // not DVT, not in white-list
+        assertThat(enabled, is(false));
 
-        disabled = ReceiveResource.downloadDisabledForOneFive(true, false); // is DVT, not in white-list
-        assertThat(disabled, is(false));
+        enabled = ReceiveResource.downloadEnabledForOneFive(true, false); // is DVT, not in white-list
+        assertThat(enabled, is(true));
 
-        disabled = ReceiveResource.downloadDisabledForOneFive(true, true); // is DVT, also in white-list
-        assertThat(disabled, is(false));
+        enabled = ReceiveResource.downloadEnabledForOneFive(true, true); // is DVT, also in white-list
+        assertThat(enabled, is(true));
 
-        disabled = ReceiveResource.downloadDisabledForOneFive(false, true); // not DVT but in white-list
-        assertThat(disabled, is(false));
+        enabled = ReceiveResource.downloadEnabledForOneFive(false, true); // not DVT but in white-list
+        assertThat(enabled, is(true));
     }
 }

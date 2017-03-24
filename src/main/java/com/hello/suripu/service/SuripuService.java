@@ -30,8 +30,8 @@ import com.hello.suripu.core.db.CalibrationDynamoDB;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.FeatureStore;
 import com.hello.suripu.core.db.FileInfoDAO;
-import com.hello.suripu.core.db.FileInfoOneDAO;
-import com.hello.suripu.core.db.FileInfoOneFiveDAO;
+import com.hello.suripu.core.db.FileInfoSenseOneDAO;
+import com.hello.suripu.core.db.FileInfoSenseOneFiveDAO;
 import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.db.FileManifestDynamoDB;
 import com.hello.suripu.core.db.FirmwareUpgradePathDAO;
@@ -143,8 +143,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final DeviceDAO deviceDAO = commonDB.onDemand(DeviceDAO.class);
 
-        final FileInfoDAO fileInfoOneDAO = commonDB.onDemand(FileInfoOneDAO.class);
-        final FileInfoDAO fileInfoOneFiveDAO = commonDB.onDemand(FileInfoOneFiveDAO.class);
+        final FileInfoDAO fileInfoSenseOneDAO = commonDB.onDemand(FileInfoSenseOneDAO.class);
+        final FileInfoDAO fileInfoSenseOneFiveDAO = commonDB.onDemand(FileInfoSenseOneFiveDAO.class);
 
         final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
 
@@ -347,7 +347,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 calibrationDAO,
                 environment.metrics(),
                 senseStateDynamoDB,
-                FileSynchronizer.create(fileInfoOneDAO, fileInfoOneFiveDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L),
+                FileSynchronizer.create(fileInfoSenseOneDAO, fileInfoSenseOneFiveDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L),
                 senseEventsDAO
                 // TODO move to config
         );

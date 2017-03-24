@@ -35,8 +35,8 @@ public class FileSynchronizer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FileSynchronizer.class);
 
-    private final FileInfoDAO fileInfoOneDAO;
-    private final FileInfoDAO fileInfoOneFiveDAO;
+    private final FileInfoDAO fileInfoSenseOneDAO;
+    private final FileInfoDAO fileInfoSenseOneFiveDAO;
 
     private final FileManifestDAO fileManifestDAO;
 
@@ -48,15 +48,15 @@ public class FileSynchronizer {
     // How long the new presigned S3 URL should exist
     private final Long presignedUrlExpirationMinutes;
 
-    private FileSynchronizer(final FileInfoDAO fileInfoOneDAO,
-                             final FileInfoDAO fileInfoOneFiveDAO,
+    private FileSynchronizer(final FileInfoDAO fileInfoSenseOneDAO,
+                             final FileInfoDAO fileInfoSenseOneFiveDAO,
                              final FileManifestDAO fileManifestDAO,
                              final AmazonS3 s3Signer,
                              final Cache<Long, FileSync.FileManifest.FileDownload> fileDownloadCache,
                              final Long presignedUrlExpirationMinutes)
     {
-        this.fileInfoOneDAO = fileInfoOneDAO;
-        this.fileInfoOneFiveDAO = fileInfoOneFiveDAO;
+        this.fileInfoSenseOneDAO = fileInfoSenseOneDAO;
+        this.fileInfoSenseOneFiveDAO = fileInfoSenseOneFiveDAO;
         this.fileManifestDAO = fileManifestDAO;
         this.s3Signer = s3Signer;
         this.fileDownloadCache = fileDownloadCache;
@@ -64,8 +64,8 @@ public class FileSynchronizer {
     }
 
     /**
-     * @param fileInfoOneDAO DAO for getting FileInfo so we know what files Sense should have. (Version 1.0)
-     * @param fileInfoOneFiveDAO same as above but for 1.5.
+     * @param fileInfoSenseOneDAO DAO for getting FileInfo so we know what files Sense should have. (Version 1.0)
+     * @param fileInfoSenseOneFiveDAO same as above but for 1.5.
      * @param fileManifestDAO DAO for saving FileManifests from Sense so we know what files Sense does have.
      * @param s3Signer S3 client for generating presigned URLs
      * @param fileDownLoadCacheExpirationMinutes Time in minutes to keep FileDownload objects in cache (for generating
@@ -74,8 +74,8 @@ public class FileSynchronizer {
      *                                      Must be greater than fileDownLoadCacheExpirationMinutes.
      * @return New FileSynchronizer object
      */
-    public static FileSynchronizer create(final FileInfoDAO fileInfoOneDAO,
-                                          final FileInfoDAO fileInfoOneFiveDAO,
+    public static FileSynchronizer create(final FileInfoDAO fileInfoSenseOneDAO,
+                                          final FileInfoDAO fileInfoSenseOneFiveDAO,
                                           final FileManifestDAO fileManifestDAO,
                                           final AmazonS3 s3Signer,
                                           final Long fileDownLoadCacheExpirationMinutes,
@@ -87,7 +87,7 @@ public class FileSynchronizer {
         final Cache<Long, FileSync.FileManifest.FileDownload> cache = CacheBuilder.newBuilder()
                 .expireAfterWrite(fileDownLoadCacheExpirationMinutes, TimeUnit.MINUTES)
                 .build();
-        return new FileSynchronizer(fileInfoOneDAO, fileInfoOneFiveDAO, fileManifestDAO, s3Signer, cache, presignedUrlExpirationMinutes);
+        return new FileSynchronizer(fileInfoSenseOneDAO, fileInfoSenseOneFiveDAO, fileManifestDAO, s3Signer, cache, presignedUrlExpirationMinutes);
     }
 
     /**
@@ -193,7 +193,7 @@ public class FileSynchronizer {
         final List<FileSync.FileManifest.FileDownload> expectedFileDownloads;
 
         // pick the right DAO based on hardware version
-        final FileInfoDAO fileInfoDAO = (hardwareVersion.equals(HardwareVersion.SENSE_ONE)) ? fileInfoOneDAO : fileInfoOneFiveDAO;
+        final FileInfoDAO fileInfoDAO = (hardwareVersion.equals(HardwareVersion.SENSE_ONE)) ? fileInfoSenseOneDAO : fileInfoSenseOneFiveDAO;
 
         if (fileDownloadsEnabled) {
             LOGGER.debug("sense_id={} file_downloads_enabled={}", senseId, fileDownloadsEnabled);
