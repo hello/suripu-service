@@ -319,6 +319,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
           @Override
           protected void configure() {
             bind(new RolloutClient(new DynamoDBAdapter(featureStore, 30))).to(RolloutClient.class);
+            bind(analyticsTracker).to(AnalyticsTracker.class);
           }
         });
 
