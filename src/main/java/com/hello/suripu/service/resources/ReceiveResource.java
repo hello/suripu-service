@@ -469,7 +469,7 @@ public class ReceiveResource extends BaseResource {
             final Boolean inWhiteList = featureFlipper.deviceFeatureActive(ServiceFeatureFlipper.FILE_DOWNLOAD_SENSE_1P5.getFeatureName(), senseId, groups);
             fileDownloadsEnabled = downloadEnabledForOneFive(isDVT, inWhiteList);
             if (fileDownloadsEnabled) {
-                LOGGER.debug("action=sense-1p5-file-download-enabled sense_id={}", senseId);
+                LOGGER.info("action=sense-1p5-file-download-enabled sense_id={}", senseId);
             }
 
             FileShaChecker.checkFileSHAForSense1p5(senseId, fileManifest.getFileInfoList());
