@@ -207,4 +207,19 @@ public class ReceiveResourceTest {
         assertThat(ReceiveResource.shouldLogAlarmActions(DateTime.now(DateTimeZone.UTC), nextRingTimeInWindowNoExpansions, ALARM_ACTIONS_WINDOW_MINS), is(false));
         assertThat(ReceiveResource.shouldLogAlarmActions(DateTime.now(DateTimeZone.UTC), RingTime.createEmpty(), ALARM_ACTIONS_WINDOW_MINS), is(false));
     }
+
+    @Test
+    public void testSenseOneFiveDownloadStatus() {
+        boolean enabled = ReceiveResource.downloadEnabledForOneFive(false, false); // not DVT, not in white-list
+        assertThat(enabled, is(false));
+
+        enabled = ReceiveResource.downloadEnabledForOneFive(true, false); // is DVT, not in white-list
+        assertThat(enabled, is(true));
+
+        enabled = ReceiveResource.downloadEnabledForOneFive(true, true); // is DVT, also in white-list
+        assertThat(enabled, is(true));
+
+        enabled = ReceiveResource.downloadEnabledForOneFive(false, true); // not DVT but in white-list
+        assertThat(enabled, is(true));
+    }
 }

@@ -20,6 +20,8 @@ import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
+import com.hello.suripu.core.analytics.AnalyticsNullTracker;
+import com.hello.suripu.core.analytics.AnalyticsTracker;
 import com.hello.suripu.core.configuration.DynamoDBTableName;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.ApplicationsDAO;
@@ -28,6 +30,8 @@ import com.hello.suripu.core.db.CalibrationDynamoDB;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.FeatureStore;
 import com.hello.suripu.core.db.FileInfoDAO;
+import com.hello.suripu.core.db.FileInfoSenseOneDAO;
+import com.hello.suripu.core.db.FileInfoSenseOneFiveDAO;
 import com.hello.suripu.core.db.FileManifestDAO;
 import com.hello.suripu.core.db.FileManifestDynamoDB;
 import com.hello.suripu.core.db.FirmwareUpgradePathDAO;
@@ -139,7 +143,8 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final DeviceDAO deviceDAO = commonDB.onDemand(DeviceDAO.class);
 
-        final FileInfoDAO fileInfoDAO = commonDB.onDemand(FileInfoDAO.class);
+        final FileInfoDAO fileInfoSenseOneDAO = commonDB.onDemand(FileInfoSenseOneDAO.class);
+        final FileInfoDAO fileInfoSenseOneFiveDAO = commonDB.onDemand(FileInfoSenseOneFiveDAO.class);
 
         final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
 
@@ -305,13 +310,16 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AmazonDynamoDB senseEventsDBClient = dynamoDBFactory.getInstrumented(DynamoDBTableName.SENSE_EVENTS, SenseEventsDAO.class);
         final SenseEventsDAO senseEventsDAO = new SenseEventsDynamoDB(senseEventsDBClient, tableNames.get(DynamoDBTableName.SENSE_EVENTS));
 
-        final RolloutModule module = new RolloutModule(featureStore, 30);
+        final AnalyticsTracker analyticsTracker = new AnalyticsNullTracker();
+
+        final RolloutModule module = new RolloutModule(featureStore, 30, analyticsTracker);
         ObjectGraphRoot.getInstance().init(module);
 
         environment.jersey().register(new AbstractBinder() {
           @Override
           protected void configure() {
             bind(new RolloutClient(new DynamoDBAdapter(featureStore, 30))).to(RolloutClient.class);
+            bind(analyticsTracker).to(AnalyticsTracker.class);
           }
         });
 
@@ -340,7 +348,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
                 calibrationDAO,
                 environment.metrics(),
                 senseStateDynamoDB,
-                FileSynchronizer.create(fileInfoDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L),
+                FileSynchronizer.create(fileInfoSenseOneDAO, fileInfoSenseOneFiveDAO, fileManifestDAO, amazonS3UrlSigner, 15L, 300L),
                 senseEventsDAO
                 // TODO move to config
         );

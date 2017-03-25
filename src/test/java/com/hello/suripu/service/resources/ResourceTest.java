@@ -3,6 +3,7 @@ package com.hello.suripu.service.resources;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.hello.suripu.core.ObjectGraphRoot;
+import com.hello.suripu.core.analytics.AnalyticsTracker;
 import com.hello.suripu.core.db.CalibrationDAO;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.FeatureStore;
@@ -60,7 +61,7 @@ public class ResourceTest {
 
     public void setUp(){
         MockitoAnnotations.initMocks(this);
-        final RolloutModule module = new RolloutModule(mock(FeatureStore.class), 30);
+        final RolloutModule module = new RolloutModule(mock(FeatureStore.class), 30, mock(AnalyticsTracker.class));
         ObjectGraphRoot.getInstance().init(module);
     }
 }

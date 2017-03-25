@@ -5,8 +5,8 @@ package com.hello.suripu.service.utils;
  */
 public enum ServiceFeatureFlipper {
 
-    // Blacklist for Senses that should not download files
-    FILE_DOWNLOAD_DISABLED("file_download_disabled"),
+
+    FILE_DOWNLOAD_DISABLED("file_download_disabled"), // Blacklist for Senses that should not download files
     SENSE_SWAP_ENABLED("sense_swap_enabled"),
     SENSE_UPLOADS_KEYWORD_FEATURES("sense_uploads_keyword_features"),
     SERVER_ACCEPTS_KEYWORD_FEATURES("server_accepts_keyword_features"),
@@ -14,7 +14,8 @@ public enum ServiceFeatureFlipper {
     PRINT_ALARM_ACK("print_alarm_ack"),
     FUTURE_ALARM_ENABLED("future_alarm_enabled"), //logic fix - only look at future alarm when getting next alarm
     SMART_ALARM_SAFEGAURD("smart_alarm_safeguard"),
-    DISABLED_SENSE("disabled_sense"); // for stolen senses
+    DISABLED_SENSE("disabled_sense"), // for stolen senses
+    FILE_DOWNLOAD_SENSE_1P5("file_download_sense_1p5");
 
     private final String featureName;
     ServiceFeatureFlipper(final String name) {
