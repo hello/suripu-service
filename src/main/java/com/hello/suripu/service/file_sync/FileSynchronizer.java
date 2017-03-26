@@ -43,7 +43,7 @@ public class FileSynchronizer {
     private final AmazonS3 s3Signer;
 
     // FileInfo.id -> FileDownload (contains presigned URL)
-    private final Cache<Long, FileSync.FileManifest.FileDownload> fileDownloadCache;
+    private final Cache<String, FileSync.FileManifest.FileDownload> fileDownloadCache;
 
     // How long the new presigned S3 URL should exist
     private final Long presignedUrlExpirationMinutes;
@@ -52,7 +52,7 @@ public class FileSynchronizer {
                              final FileInfoDAO fileInfoSenseOneFiveDAO,
                              final FileManifestDAO fileManifestDAO,
                              final AmazonS3 s3Signer,
-                             final Cache<Long, FileSync.FileManifest.FileDownload> fileDownloadCache,
+                             final Cache<String, FileSync.FileManifest.FileDownload> fileDownloadCache,
                              final Long presignedUrlExpirationMinutes)
     {
         this.fileInfoSenseOneDAO = fileInfoSenseOneDAO;
@@ -84,7 +84,7 @@ public class FileSynchronizer {
         if (presignedUrlExpirationMinutes < fileDownLoadCacheExpirationMinutes) {
             throw new IllegalArgumentException("presignedUrlExpirationMinutes cannot be less than fileDownLoadCacheExpirationMinutes");
         }
-        final Cache<Long, FileSync.FileManifest.FileDownload> cache = CacheBuilder.newBuilder()
+        final Cache<String, FileSync.FileManifest.FileDownload> cache = CacheBuilder.newBuilder()
                 .expireAfterWrite(fileDownLoadCacheExpirationMinutes, TimeUnit.MINUTES)
                 .build();
         return new FileSynchronizer(fileInfoSenseOneDAO, fileInfoSenseOneFiveDAO, fileManifestDAO, s3Signer, cache, presignedUrlExpirationMinutes);
@@ -147,15 +147,19 @@ public class FileSynchronizer {
                 .build();
     }
 
+    private static String cacheKey(final Long fileInfoId, final HardwareVersion hardwareVersion) {
+        return String.format("%s_%s", String.valueOf(hardwareVersion.value), String.valueOf(fileInfoId));
+    }
+
     /**
      * Get the FileDownload from cache, or generate it.
      * @throws URISyntaxException
      */
-    private FileSync.FileManifest.FileDownload fileDownloadFromCache(final FileInfo fileInfo)
+    private FileSync.FileManifest.FileDownload fileDownloadFromCache(final String cacheKey, final FileInfo fileInfo)
             throws URISyntaxException, DecoderException
     {
         try {
-            return fileDownloadCache.get(fileInfo.id, new Callable<FileSync.FileManifest.FileDownload>() {
+            return fileDownloadCache.get(cacheKey, new Callable<FileSync.FileManifest.FileDownload>() {
                 @Override
                 public FileSync.FileManifest.FileDownload call() throws URISyntaxException, DecoderException {
                     return toFileDownload(fileInfo);
@@ -168,13 +172,14 @@ public class FileSynchronizer {
         }
     }
 
-    private List<FileSync.FileManifest.FileDownload> getFileDownloadsFromFileInfo(final List<FileInfo> fileInfoList) {
+    private List<FileSync.FileManifest.FileDownload> getFileDownloadsFromFileInfo(final List<FileInfo> fileInfoList, final HardwareVersion hardwareVersion) {
 
         final List<FileSync.FileManifest.FileDownload> downloads = new ArrayList<>(fileInfoList.size());
 
         for (final FileInfo fileInfo : fileInfoList) {
             try {
-                downloads.add(fileDownloadFromCache(fileInfo));
+                final String cacheKey = cacheKey(fileInfo.id, hardwareVersion);
+                downloads.add(fileDownloadFromCache(cacheKey, fileInfo));
             } catch (URISyntaxException e) {
                 LOGGER.error("error=URISyntaxException uri={}", fileInfo.uri);
             } catch (DecoderException e) {
@@ -198,7 +203,7 @@ public class FileSynchronizer {
         if (fileDownloadsEnabled) {
             LOGGER.debug("sense_id={} file_downloads_enabled={}", senseId, fileDownloadsEnabled);
             final List<FileInfo> expectedFileInfo = fileInfoDAO.getAll(requestManifest.getFirmwareVersion(), senseId);
-            expectedFileDownloads = getFileDownloadsFromFileInfo(expectedFileInfo);
+            expectedFileDownloads = getFileDownloadsFromFileInfo(expectedFileInfo, hardwareVersion);
         } else {
             LOGGER.info("sense_id={} file_downloads_enabled={}", senseId, fileDownloadsEnabled);
             expectedFileDownloads = Collections.emptyList();
