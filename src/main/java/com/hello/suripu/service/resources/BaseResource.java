@@ -12,10 +12,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class BaseResource {
 
+    private static final List<String> EMPTY = new ArrayList<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseResource.class);
 
     @Inject
@@ -64,6 +66,6 @@ public abstract class BaseResource {
 
     // Calibration is enabled on a per device basis
     protected Boolean hasCalibrationEnabled(final String senseId) {
-        return featureFlipper.deviceFeatureActive(FeatureFlipper.CALIBRATION, senseId, Collections.EMPTY_LIST);
+        return featureFlipper.deviceFeatureActive(FeatureFlipper.CALIBRATION, senseId, EMPTY);
     }
 }

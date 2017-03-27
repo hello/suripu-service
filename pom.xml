@@ -16,7 +16,7 @@
         <librato.reporter.version>2.2.0.5</librato.reporter.version>
         <metrics.version>3.1.2</metrics.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <suripu.version>0.8.6114-SNAPSHOT</suripu.version>
+        <suripu.version>0.8.6116</suripu.version>
     </properties>
 
     <distributionManagement>
@@ -361,6 +361,7 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <compilerArgument>-Xlint:unchecked</compilerArgument>
                 </configuration>
             </plugin>
             <plugin>

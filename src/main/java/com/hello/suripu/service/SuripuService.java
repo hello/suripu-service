@@ -312,16 +312,14 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AmazonDynamoDB senseEventsDBClient = dynamoDBFactory.getInstrumented(DynamoDBTableName.SENSE_EVENTS, SenseEventsDAO.class);
         final SenseEventsDAO senseEventsDAO = new SenseEventsDynamoDB(senseEventsDBClient, tableNames.get(DynamoDBTableName.SENSE_EVENTS));
 
-        final AnalyticsTracker analyticsTracker = new AnalyticsNullTracker();
 
-        final RolloutModule module = new RolloutModule(featureStore, 30, analyticsTracker);
+        final RolloutModule module = new RolloutModule(featureStore, 30);
         ObjectGraphRoot.getInstance().init(module);
 
         environment.jersey().register(new AbstractBinder() {
           @Override
           protected void configure() {
             bind(new RolloutClient(new DynamoDBAdapter(featureStore, 30))).to(RolloutClient.class);
-            bind(analyticsTracker).to(AnalyticsTracker.class);
           }
         });
 
