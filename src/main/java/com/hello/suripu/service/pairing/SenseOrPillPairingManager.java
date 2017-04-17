@@ -3,6 +3,8 @@ package com.hello.suripu.service.pairing;
 import com.amazonaws.AmazonServiceException;
 import com.google.common.base.Optional;
 import com.hello.suripu.api.ble.SenseCommandProtos;
+import com.hello.suripu.core.alerts.Alert;
+import com.hello.suripu.core.alerts.AlertsDAO;
 import com.hello.suripu.core.db.DeviceDAO;
 import com.hello.suripu.core.db.MergedUserInfoDynamoDB;
 import com.hello.suripu.core.models.DeviceAccountPair;
@@ -11,6 +13,8 @@ import com.hello.suripu.service.pairing.pill.PillPairingRequest;
 import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
 import com.hello.suripu.service.pairing.sense.SensePairingRequest;
 import com.hello.suripu.service.utils.RegistrationLogger;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,28 +26,30 @@ public class SenseOrPillPairingManager implements PairingManager {
     private final static Logger LOGGER = LoggerFactory.getLogger(SenseOrPillPairingManager.class);
     
     private final DeviceDAO deviceDAO;
+    private final AlertsDAO alertsDAO;
     private final MergedUserInfoDynamoDB mergedUserInfoDynamoDB;
     private final RegistrationLogger onboardingLogger;
     private final PillPairStateEvaluator pillPairStateEvaluator;
     private final SensePairStateEvaluator sensePairStateEvaluator;
 
-    private SenseOrPillPairingManager(final DeviceDAO deviceDAO, final MergedUserInfoDynamoDB mergedUserInfoDynamoDB,
-                                     final RegistrationLogger registrationLogger,
-                                     final PillPairStateEvaluator pillPairStateEvaluator, final SensePairStateEvaluator sensePairStateEvaluator) {
+    private SenseOrPillPairingManager(final DeviceDAO deviceDAO, AlertsDAO alertsDAO, final MergedUserInfoDynamoDB mergedUserInfoDynamoDB,
+                                      final RegistrationLogger registrationLogger,
+                                      final PillPairStateEvaluator pillPairStateEvaluator, final SensePairStateEvaluator sensePairStateEvaluator) {
         this.deviceDAO = deviceDAO;
+        this.alertsDAO = alertsDAO;
         this.onboardingLogger = registrationLogger;
         this.mergedUserInfoDynamoDB = mergedUserInfoDynamoDB;
         this.pillPairStateEvaluator = pillPairStateEvaluator;
         this.sensePairStateEvaluator = sensePairStateEvaluator;
     }
 
-    public static PairingManager create(final DeviceDAO deviceDAO, final MergedUserInfoDynamoDB mergedUserInfoDynamoDB,
+    public static PairingManager create(final DeviceDAO deviceDAO, final AlertsDAO alertsDAO, final MergedUserInfoDynamoDB mergedUserInfoDynamoDB,
                                                    final PillPairStateEvaluator pillPairStateEvaluator, final SensePairStateEvaluator sensePairStateEvaluator) {
-        return new SenseOrPillPairingManager(deviceDAO, mergedUserInfoDynamoDB, new NoOpRegistrationLogger(), pillPairStateEvaluator, sensePairStateEvaluator);
+        return new SenseOrPillPairingManager(deviceDAO, alertsDAO, mergedUserInfoDynamoDB, new NoOpRegistrationLogger(), pillPairStateEvaluator, sensePairStateEvaluator);
     }
 
     public PairingManager withLogger(RegistrationLogger logger) {
-        return new SenseOrPillPairingManager(deviceDAO, mergedUserInfoDynamoDB, logger, pillPairStateEvaluator, sensePairStateEvaluator);
+        return new SenseOrPillPairingManager(deviceDAO, alertsDAO, mergedUserInfoDynamoDB, logger, pillPairStateEvaluator, sensePairStateEvaluator);
     }
 
     final void setPillColor(final String senseId, final long accountId, final String pillId){
@@ -95,7 +101,7 @@ public class SenseOrPillPairingManager implements PairingManager {
 
     @Override
     public PairingResult pairPill(final PairingAttempt attempt) {
-        if(attempt.pillId.isPresent()) {
+        if(!attempt.pillId.isPresent()) {
             LOGGER.error("action=pair-pill error=missing-pill-id sense_id={} account_id={}", attempt.senseId, attempt.accountId);
             throw new RuntimeException("missing pill id in pill pairing attempt");
         }
@@ -121,9 +127,15 @@ public class SenseOrPillPairingManager implements PairingManager {
                 final List<DeviceAccountPair> pairedAccounts = this.deviceDAO.getLinkedAccountFromPillId(pillId);
                 if(pairedAccounts.size() == 1) {
                     final DeviceAccountPair pair = pairedAccounts.get(0);
+
                     final int rowsUpdated = deviceDAO.updateAccountPairedForPill(attempt.accountId, pillId);
                     if(rowsUpdated == 1) {
                         this.setPillColor(attempt.senseId, attempt.accountId, pillId);
+                        if(attempt.notifyOnConflict) {
+                            // Best effort to insert pairing conflict alert
+                            final Alert alert = Alert.pairingConflict(attempt.accountId, DateTime.now(DateTimeZone.UTC));
+                            alertsDAO.insert(alert);
+                        }
                     }
                 }
                 break;

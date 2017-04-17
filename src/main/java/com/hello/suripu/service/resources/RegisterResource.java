@@ -28,6 +28,7 @@ import com.hello.suripu.service.pairing.PairingAttempt;
 import com.hello.suripu.service.pairing.PairingManager;
 import com.hello.suripu.service.pairing.PairingResult;
 import com.hello.suripu.service.utils.KinesisRegistrationLogger;
+import com.hello.suripu.service.utils.ServiceFeatureFlipper;
 import com.librato.rollout.RolloutClient;
 import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
@@ -103,6 +104,11 @@ public class RegisterResource extends BaseResource {
     private boolean isPillPairingDebugMode(final String senseId) {
         final List<String> groups = groupFlipper.getGroups(senseId);
         return featureFlipper.deviceFeatureActive(FeatureFlipper.DEBUG_MODE_PILL_PAIRING, senseId, groups);
+    }
+
+    private boolean notifyOnConflict(final Long accountId) {
+        final List<String> groups = groupFlipper.getGroups(accountId);
+        return featureFlipper.userFeatureActive(ServiceFeatureFlipper.NOTIFY_ON_PAIRING_CONFLICT.getFeatureName(), accountId, groups);
     }
 
     private final Optional<AccessToken> getClientDetailsByToken(final ClientCredentials credentials, final DateTime now) {
@@ -259,7 +265,8 @@ public class RegisterResource extends BaseResource {
 
                 case PAIR_PILL: {
                     final boolean pillPairingDebugMode = isPillPairingDebugMode(senseId);
-                    final PairingAttempt pillPairingAttempt = PairingAttempt.pill(builder, senseId, accountId, deviceId, pillPairingDebugMode, ipAddress);
+                    final boolean notifyOnConflict = notifyOnConflict(accountId);
+                    final PairingAttempt pillPairingAttempt = PairingAttempt.pill(builder, senseId, accountId, deviceId, pillPairingDebugMode, ipAddress, notifyOnConflict);
                     final PairingResult result = pairer.pairPill(pillPairingAttempt);
                     builder = result.builder;
                     break;

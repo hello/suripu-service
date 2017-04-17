@@ -15,7 +15,8 @@ public enum ServiceFeatureFlipper {
     FUTURE_ALARM_ENABLED("future_alarm_enabled"), //logic fix - only look at future alarm when getting next alarm
     SMART_ALARM_SAFEGAURD("smart_alarm_safeguard"),
     DISABLED_SENSE("disabled_sense"), // for stolen senses
-    FILE_DOWNLOAD_SENSE_1P5("file_download_sense_1p5");
+    FILE_DOWNLOAD_SENSE_1P5("file_download_sense_1p5"),
+    NOTIFY_ON_PAIRING_CONFLICT("notify_on_pairing_conflict");
 
     private final String featureName;
     ServiceFeatureFlipper(final String name) {

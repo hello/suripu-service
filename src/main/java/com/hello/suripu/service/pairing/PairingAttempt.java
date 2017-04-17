@@ -10,27 +10,31 @@ public class PairingAttempt {
     final Long accountId;
     final Optional<String> pillId;
     final boolean debugMode;
+    final boolean notifyOnConflict;
     final String ipAddress;
 
 
     private PairingAttempt(final SenseCommandProtos.MorpheusCommand.Builder builder, final String senseId,
-                           final Long accountId, final String pillId, final boolean debugMode, final String ipAddress) {
+                           final Long accountId, final String pillId, final boolean debugMode, final String ipAddress,
+                           final boolean notifyOnConflict) {
         this.builder = builder;
         this.senseId = senseId;
         this.accountId = accountId;
         this.pillId = Optional.fromNullable(pillId);
         this.debugMode = debugMode;
+        this.notifyOnConflict = notifyOnConflict;
         this.ipAddress = ipAddress;
     }
 
     public static PairingAttempt pill(final SenseCommandProtos.MorpheusCommand.Builder builder, final String senseId,
-                                      final Long accountId, final String pillId, final boolean debugMode, final String ipAddress) {
-        return new PairingAttempt(builder,senseId,accountId,pillId,debugMode,ipAddress);
+                                      final Long accountId, final String pillId, final boolean debugMode, final String ipAddress,
+                                      final boolean notifyOnConflict) {
+        return new PairingAttempt(builder,senseId,accountId,pillId,debugMode,ipAddress, notifyOnConflict);
     }
 
     public static PairingAttempt sense(final SenseCommandProtos.MorpheusCommand.Builder builder, final String senseId,
                                       final Long accountId, final boolean debugMode, final String ipAddress) {
-        return new PairingAttempt(builder,senseId,accountId,null,debugMode,ipAddress);
+        return new PairingAttempt(builder,senseId,accountId,null,debugMode,ipAddress, false);
     }
 
     public String senseId() {

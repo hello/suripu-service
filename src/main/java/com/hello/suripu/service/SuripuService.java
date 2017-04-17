@@ -20,8 +20,7 @@ import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
-import com.hello.suripu.core.analytics.AnalyticsNullTracker;
-import com.hello.suripu.core.analytics.AnalyticsTracker;
+import com.hello.suripu.core.alerts.AlertsDAO;
 import com.hello.suripu.core.configuration.DynamoDBTableName;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.ApplicationsDAO;
@@ -147,6 +146,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final FileInfoDAO fileInfoSenseOneDAO = commonDB.onDemand(FileInfoSenseOneDAO.class);
         final FileInfoDAO fileInfoSenseOneFiveDAO = commonDB.onDemand(FileInfoSenseOneFiveDAO.class);
+        final AlertsDAO alertsDAO = commonDB.onDemand(AlertsDAO.class);
 
         final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
 
@@ -368,6 +368,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final PairingManager pairingManager = SenseOrPillPairingManager.create(
                 deviceDAO,
+                alertsDAO,
                 mergedUserInfoDynamoDB,
                 pillPairStateEvaluator,
                 sensePairStateEvaluator
