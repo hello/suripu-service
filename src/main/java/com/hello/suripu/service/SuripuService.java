@@ -20,8 +20,7 @@ import com.hello.dropwizard.mikkusu.helpers.JacksonProtobufProvider;
 import com.hello.dropwizard.mikkusu.resources.PingResource;
 import com.hello.dropwizard.mikkusu.resources.VersionResource;
 import com.hello.suripu.core.ObjectGraphRoot;
-import com.hello.suripu.core.analytics.AnalyticsNullTracker;
-import com.hello.suripu.core.analytics.AnalyticsTracker;
+import com.hello.suripu.core.alerts.AlertsDAO;
 import com.hello.suripu.core.configuration.DynamoDBTableName;
 import com.hello.suripu.core.configuration.QueueName;
 import com.hello.suripu.core.db.ApplicationsDAO;
@@ -81,6 +80,8 @@ import com.hello.suripu.service.configuration.AWSClientConfiguration;
 import com.hello.suripu.service.configuration.SuripuConfiguration;
 import com.hello.suripu.service.file_sync.FileSynchronizer;
 import com.hello.suripu.service.modules.RolloutModule;
+import com.hello.suripu.service.pairing.PairingManager;
+import com.hello.suripu.service.pairing.SenseOrPillPairingManager;
 import com.hello.suripu.service.pairing.pill.PillPairStateEvaluator;
 import com.hello.suripu.service.pairing.sense.SensePairStateEvaluator;
 import com.hello.suripu.service.resources.AudioResource;
@@ -145,6 +146,7 @@ public class SuripuService extends Application<SuripuConfiguration> {
 
         final FileInfoDAO fileInfoSenseOneDAO = commonDB.onDemand(FileInfoSenseOneDAO.class);
         final FileInfoDAO fileInfoSenseOneFiveDAO = commonDB.onDemand(FileInfoSenseOneFiveDAO.class);
+        final AlertsDAO alertsDAO = commonDB.onDemand(AlertsDAO.class);
 
         final ImmutableMap<DynamoDBTableName, String> tableNames = configuration.dynamoDBConfiguration().tables();
 
@@ -310,16 +312,14 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final AmazonDynamoDB senseEventsDBClient = dynamoDBFactory.getInstrumented(DynamoDBTableName.SENSE_EVENTS, SenseEventsDAO.class);
         final SenseEventsDAO senseEventsDAO = new SenseEventsDynamoDB(senseEventsDBClient, tableNames.get(DynamoDBTableName.SENSE_EVENTS));
 
-        final AnalyticsTracker analyticsTracker = new AnalyticsNullTracker();
 
-        final RolloutModule module = new RolloutModule(featureStore, 30, analyticsTracker);
+        final RolloutModule module = new RolloutModule(featureStore, 30);
         ObjectGraphRoot.getInstance().init(module);
 
         environment.jersey().register(new AbstractBinder() {
           @Override
           protected void configure() {
             bind(new RolloutClient(new DynamoDBAdapter(featureStore, 30))).to(RolloutClient.class);
-            bind(analyticsTracker).to(AnalyticsTracker.class);
           }
         });
 
@@ -366,14 +366,20 @@ public class SuripuService extends Application<SuripuConfiguration> {
         final PillPairStateEvaluator pillPairStateEvaluator = new PillPairStateEvaluator(deviceDAO);
         final SensePairStateEvaluator sensePairStateEvaluator = new SensePairStateEvaluator(deviceDAO, swapper);
 
+        final PairingManager pairingManager = SenseOrPillPairingManager.create(
+                deviceDAO,
+                alertsDAO,
+                mergedUserInfoDynamoDB,
+                pillPairStateEvaluator,
+                sensePairStateEvaluator
+        );
+
         final RegisterResource registerResource = new RegisterResource(deviceDAO,
                 tokenStore,
                 kinesisLoggerFactory,
                 senseKeyStore,
-                mergedUserInfoDynamoDB,
                 groupFlipper,
-                pillPairStateEvaluator,
-                sensePairStateEvaluator
+                pairingManager
         );
 
         environment.jersey().register(registerResource);

@@ -55,7 +55,7 @@ public class PillPairStateEvaluatorTest {
                 new DeviceAccountPair(otherAccountId, 0L, request.pillId(), DateTime.now(DateTimeZone.UTC))
         );
         final PairState state = PillPairStateEvaluator.get(request, empty, pills, logger);
-        assertEquals(PairState.PAIRING_VIOLATION, state);
+        assertEquals(PairState.PAIRED_WITH_OTHER_ACCOUNT, state);
     }
 
     @Test

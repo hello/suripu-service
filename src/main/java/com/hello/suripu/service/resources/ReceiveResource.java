@@ -51,7 +51,6 @@ import com.hello.suripu.core.util.DateTimeUtil;
 import com.hello.suripu.core.util.HelloHttpHeader;
 import com.hello.suripu.core.util.RoomConditionUtil;
 import com.hello.suripu.core.util.SenseLogLevelUtil;
-import com.hello.suripu.coredropwizard.resources.BaseResource;
 import com.hello.suripu.service.SignedMessage;
 import com.hello.suripu.service.Util;
 import com.hello.suripu.service.configuration.OTAConfiguration;
