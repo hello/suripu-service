@@ -119,14 +119,14 @@ ota_configuration:
 
 aws_metric_namespace: suripu-service
 dynamo_client_configuration:
-  max_connections: 100
+  max_connections: 200
   connection_timeout: 100
   connection_max_idle_millis: 60000
   max_error_retry: 1
   request_timeout: 200
 
 kinesis_client_configuration:
-  max_connections: 100
+  max_connections: 200
   connection_timeout: 200
   connection_max_idle_millis: 60000
   max_error_retry: 1
